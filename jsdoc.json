@@ -1,0 +1,35 @@
+{
+	"tags": {
+		"allowUnknownTags": true
+	},
+	"source": {
+		"include": ["./", "./README.md"],
+		"exclude": ["config", "knex_migrations", "logs", "node_modules", "tenant_applications", "tenant_assets", "./tests/mocha.js", "./tests/mocha.css", "./server/templates/BhairaviTemplate/static/js/adminlte.js", "./server/templates/BhairaviTemplate/static/js/ember-load-initializers.js", "./server/templates/BhairaviTemplate/static/js/ember-resolver.js"],
+		"includePattern": ".+\\.js(doc)?$",
+		"excludePattern": "(node_modules/|docs|bower_components/)"
+	},
+	"plugins": [
+		"plugins/markdown",
+		"plugins/summarize"
+	],
+	"opts": {
+		"template": "./node_modules/docdash",
+		"destination": "./docs/",
+		"readme": "./README.md",
+		"package": "./package.json",
+		"encoding": "utf8",
+		"recurse": true,
+		"verbose": true
+	},
+	"templates": {
+		"cleverLinks": false,
+		"monospaceLinks": false,
+		"default": {
+			"outputSourceFiles": true
+		}
+	},
+	"docdash": {
+		"static": false,
+		"sort": true
+	}
+}

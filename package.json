@@ -1,0 +1,124 @@
+{
+	"name": "webapp-server",
+	"version": "1.8.3",
+	"description": "The Generic Web Application for Twy'r",
+	"keywords": [
+		"twyr",
+		"server",
+		"framework"
+	],
+	"author": {
+		"name": "Vish Desai",
+		"email": "vishwakarma_d@hotmail.com",
+		"url": "https://twyr.github.io"
+	},
+	"homepage": "https://twyr.github.io",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/twyr/webapp-server"
+	},
+	"main": "index.js",
+	"scripts": {
+		"docgen": "./node_modules/jsdoc/jsdoc.js --configure ./jsdoc.json",
+		"postinstall": "npm install jsonapi-mapper && touch ./logs/init.log",
+		"start": "rm ./logs/*.log && node index.js | tee ./logs/console.log",
+		"test": "NODE_ENV=test mocha --recursive ./tests"
+	},
+	"engines": {
+		"node": ">=8.0"
+	},
+	"dependencies": {
+		"ascoltatori": "*",
+		"bcrypt-nodejs": "*",
+		"bluebird": "*",
+		"body-parser": "*",
+		"bookshelf": "*",
+		"bookshelf-jsonapi-params": "*",
+		"busboy": "*",
+		"cheerio": "*",
+		"chokidar": "*",
+		"compression": "*",
+		"connect-acceptoverride": "0.0.4",
+		"connect-debounce": "*",
+		"connect-flash": "*",
+		"connect-powered-by": "*",
+		"connect-redis": "*",
+		"connect-rest": "*",
+		"connect-timeout": "*",
+		"consolidate": "*",
+		"cookie-parser": "*",
+		"cors": "*",
+		"csv-parse": "*",
+		"deep-equal": "*",
+		"deepmerge": "^1.4.4",
+		"dependency-graph": "*",
+		"dotenv": "*",
+		"ejs": "*",
+		"email-existence": "*",
+		"express": ">=4.0",
+		"express-device": "*",
+		"express-session": "*",
+		"fs-extra": "*",
+		"html-entities": "*",
+		"html-minifier": "*",
+		"i18n": "*",
+		"inflection": "*",
+		"jsonapi-mapper": "^1.0.0-beta.12",
+		"jsonapi-query-parser": "*",
+		"jsonapi-serializer": "*",
+		"knex": "*",
+		"lodash": "*",
+		"method-override": "*",
+		"moment": "*",
+		"morgan": "*",
+		"node-mocks-http": "^1.6.3",
+		"node-print": "*",
+		"node-uuid": "*",
+		"nodemailer": "*",
+		"nodemailer-smtp-transport": "*",
+		"passport": "*",
+		"passport-facebook": "*",
+		"passport-github": "*",
+		"passport-google-oauth": "*",
+		"passport-linkedin-oauth2": "*",
+		"passport-local": "*",
+		"passport-twitter": "*",
+		"patrun": "*",
+		"pg": "^6.4.0",
+		"primus": "*",
+		"primus-rooms": "*",
+		"redis": "*",
+		"serve-favicon": "*",
+		"stream-transform": "*",
+		"uuid": "^3.1.0",
+		"validatorjs": "*",
+		"winston": "*",
+		"ws": "*"
+	},
+	"devDependencies": {
+		"chai": "*",
+		"docdash": "*",
+		"jsdoc": "*",
+		"mocha": "*"
+	},
+	"maintainers": [
+		{
+			"name": "Vish Desai",
+			"email": "vishwakarma_d@hotmail.com",
+			"url": "https://twyr.github.io"
+		}
+	],
+	"contributors": [
+		{
+			"name": "Vish Desai",
+			"email": "vishwakarma_d@hotmail.com",
+			"url": "https://twyr.github.io"
+		}
+	],
+	"bugs": {
+		"url": "https://github.com/twyr/webapp-server/issues",
+		"email": "vishwakarma_d@hotmail.com"
+	},
+	"license": "MITNFA",
+	"readmeFilename": "README.md"
+}

@@ -1,0 +1,20 @@
+define(
+	'twyr-webapp/controllers/<%- controllerName %>',
+	['exports', 'ember', 'twyr-webapp/controllers/base-controller'],
+	function(exports, _ember, _baseController) {
+		if(window.developmentMode) console.log('DEFINE: twyr-webapp/controllers/<%- controllerName %>');
+		exports['default'] = _baseController['default'].extend({
+			<% controllerFields.forEach((controllerField) => { %>
+			'<%= controllerField %>': null,
+			<% }) %>
+
+			'actions': {
+				<% controllerFields.forEach((controllerField) => { %>
+				'set-<%= controllerField %>': function(data) {
+					this.set('<%= controllerField %>', data);
+				},
+				<% }) %>
+			}
+		});
+	}
+);

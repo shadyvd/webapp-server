@@ -1,0 +1,24 @@
+<script type="text/x-handlebars" data-template-name="components/application-chooser">
+<div class="box box-primary">
+<div class="box-header with-border">
+	<h3 class="box-title">Choose Application</h3>
+</div>
+<div class="box-body row no-margin" style="padding:10px;">
+	{{#each displayData.applications as |application|}}
+	<div class="col-lg-2 col-md-2 col-sm-4 col-xs-6" style="margin:5px; padding:0px; min-height:20vh; height:20vh; max-height:20vh;">
+		{{#link-to application.route}}
+		<div class="small-box bg-{{application.bgColorClass}} no-margin" style="min-height:20vh; height:20vh; max-height:20vh;">
+			<div class="inner">
+				<h3>{{application.name}}</h3>
+				<p style="text-overflow:ellipsis;">{{application.description}}</p>
+			</div>
+			<span class="icon">
+				<i class="fa fa-rocket" />
+			</span>
+		</div>
+		{{/link-to}}
+	</div>
+	{{/each}}
+</div>
+</div>
+</script>

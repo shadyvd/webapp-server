@@ -1,0 +1,67 @@
+<!-- Croppie for image uploads -->
+<link href="//cdnjs.cloudflare.com/ajax/libs/croppie/2.4.1/croppie.min.css" rel="stylesheet" type="text/css" />
+<script type="application/javascript" src="//cdnjs.cloudflare.com/ajax/libs/croppie/2.4.1/croppie.min.js"></script>
+
+<!-- Select2 for a bettter select box -->
+<script type="application/javascript" src="//cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.full.min.js"></script>
+
+<!-- Bootstrap themed DatePicker -->
+<script type="application/javascript" src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.7.0/js/bootstrap-datepicker.min.js"></script>
+
+<script type="text/x-handlebars" data-template-name="components/profile-basic-information">
+<div class="box box-primary">
+<div class="box-header with-border">
+	<h3 class="box-title">Basic Information</h3>
+	<div class="box-tools pull-right">
+		{{#if model.hasDirtyAttributes}}
+		<button id="button-cancel" class="btn btn-flat btn-warning btn-sm" {{action "controller-action" "cancel" bubbles=false}}>
+			<i class="fa fa-undo" />
+			<span style="font-size:12px;">Cancel</span>
+		</button>
+
+		<button class="btn btn-flat btn-primary btn-sm" {{action "controller-action" "save" bubbles=false}}>
+			<i class="fa fa-save" />
+			<span style="font-size:12px;">Save</span>
+		</button>
+		{{/if}}
+
+		<button class="btn btn-flat btn-default btn-sm" style="border-radius:50%;" data-widget="collapse">
+			<i class="fa fa-minus" />
+		</button>
+	</div>
+</div>
+<div class="box-body row">
+	<div id="profile-basic-information-image" class="col-sm-6" style="width:50%; padding:0px;" contenteditable="true">
+	</div>
+	<div id="profile-basic-information-text-stuff" class="col-sm-6">
+		<div class="form-group">
+			<label for="profile-basic-information-input-first-name">First / Given Name</label>
+			{{input type="text" id="profile-basic-information-input-first-name" class="form-control" value=model.firstName placeholder="First Name"}}
+		</div>
+		<div class="form-group">
+			<label for="profile-basic-information-input-middle-name">Middle Names</label>
+			{{input type="text" id="profile-basic-information-input-middle-name" class="form-control" value=model.middleNames placeholder="Middle Names"}}
+		</div>
+		<div class="form-group">
+			<label for="profile-basic-information-input-last-name">Last Name / Surname</label>
+			{{input type="text" id="profile-basic-information-input-last-name" class="form-control" value=model.lastName placeholder="Last Name"}}
+		</div>
+		<div class="row">
+			<div class="col-sm-6 form-group">
+				<label for="profile-basic-information-input-dob">Date of Birth</label>
+				<div class="input-group date" id="profile-basic-information-input-dob">
+					{{input type="text" class="form-control" value=model.formattedDOB placeholder="DD MMM YYYY"}}
+					<span class="input-group-addon">
+						<span class="fa fa-calendar" />
+					</span>
+				</div>
+			</div>
+			<div class="col-sm-6 form-group">
+				<label for="profile-basic-information-select-gender">Gender</label>
+				<select id="profile-basic-information-select-gender" class="form-control select2" style="width:100%;" placeholder="Gender" />
+			</div>
+		</div>
+	</div>
+</div>
+</div>
+</script>

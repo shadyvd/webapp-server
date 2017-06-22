@@ -1,0 +1,10 @@
+define(
+	'twyr-webapp/controllers/<%- controllerName %>',
+	['exports', 'ember', 'twyr-webapp/controllers/base-controller'],
+	function(exports, _ember, _baseController) {
+		if(window.developmentMode) console.log('DEFINE: twyr-webapp/controllers/<%- controllerName %>');
+		exports['default'] = _baseController['default'].extend({
+			// This is the custom controller for this screen
+		});
+	}
+);

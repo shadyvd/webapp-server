@@ -1,0 +1,37 @@
+{
+  "name": "bhairavi-template",
+  "version": "1.8.3",
+  "authors": [
+    {
+      "name": "Vish Desai",
+      "email": "vishwakarma_d@hotmail.com"
+    }
+  ],
+  "description": "The Twy'r Web Application Bhairavi Template",
+  "main": [
+    "./bower_components/bootflat/bootstrap/bootstrap.css",
+    "./bower_components/bootflat/js/bootstrap.js"
+  ],
+  "keywords": [
+    "twyr",
+    "webapp",
+    "framework"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/twyr/webapp-server.git"
+  },
+  "license": "MITNFA",
+  "homepage": "https://twyr.github.io",
+  "private": false,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components"
+  ],
+  "dependencies": {
+    "loader.js": "4.1.0",
+    "ember-cli-shims": "*"
+  },
+  "devDependencies": {}
+}

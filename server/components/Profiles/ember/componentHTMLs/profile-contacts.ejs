@@ -1,0 +1,65 @@
+<script type="text/x-handlebars" data-template-name="components/profile-contacts">
+<div class="box box-primary">
+<div class="box-header with-border">
+	<h3 class="box-title">Contact Information</h3>
+	<div class="box-tools pull-right">
+		<button class="btn btn-flat btn-default btn-sm" style="border-radius:50%;" data-widget="collapse">
+			<i class="fa fa-minus" />
+		</button>
+	</div>
+</div>
+
+<div class="box-body no-padding">
+<table class="table table-bordered">
+<thead>
+	<tr>
+		<th style="width:40%;">Type</th>
+		<th>Contact</th>
+		<th style="text-align:right; vertical-align:middle;">
+			<button type="button" class="btn btn-flat btn-sm btn-success" style="padding:4px;" {{action "controller-action" "add"}}>
+				<i class="fa fa-plus" style="margin-right:2px;" /><span>Add</span>
+			</button>
+		</th>
+	</tr>
+</thead>
+<tbody>
+	<tr>
+		<td style="vertical-align:middle;">Twy&apos;r Login</td>
+		<td style="vertical-align:middle;">{{model.email}}</td>
+		<td>&nbsp;</td>
+	</tr>
+	{{#each model.profileContacts as |contact|}}
+	{{#if contact.isNew}}
+	<tr>
+		<td class="form-group" style="vertical-align:middle;">
+			<select id="profile-contacts-select-type-{{contact.id}}" class="form-control" />
+		</td>
+		<td style="vertical-align:middle;">
+			{{input type="text" class="form-control" value=contact.contact}}
+		</td>
+		<td style="text-align:right; vertical-align:middle;">
+			<button type="button" title="Save" class="btn btn-flat btn-sm btn-primary" {{action "controller-action" "save" contact}}>
+				<i class="fa fa-save" />
+			</button>
+			<button type="button" title="Delete" class="btn btn-flat btn-sm btn-danger" {{action "controller-action" "delete" contact}}>
+				<i class="fa fa-remove" />
+			</button>
+		</td>
+	</tr>
+	{{else}}
+	<tr>
+		<td style="vertical-align:middle;">{{contact.displayType}}</td>
+		<td style="vertical-align:middle;">{{contact.contact}}</td>
+		<td style="text-align:right; vertical-align:middle;">
+			<button type="button" title="Delete" class="btn btn-flat btn-sm btn-danger" style="padding:4px;" {{action "controller-action" "delete" contact}}>
+				<i class="fa fa-remove" />
+			</button>
+		</td>
+	</tr>
+	{{/if}}
+	{{/each}}
+</tbody>
+</table>
+</div>
+</div>
+</script>

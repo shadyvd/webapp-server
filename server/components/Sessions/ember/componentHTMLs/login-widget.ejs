@@ -1,0 +1,80 @@
+<!-- Validate.js - easier form value validations -->
+<script type="application/javascript" src="//cdnjs.cloudflare.com/ajax/libs/validate.js/0.11.1/validate.min.js"></script>
+
+<script type="text/x-handlebars" data-template-name="components/login-widget">
+<div class="box box-default" style="margin:0px;">
+<div class="box-header with-border">
+	<h3 class="box-title"><%= __('TWYR_COMPONENT_SESSIONS_LOGIN') %></h3>
+</div>
+
+<div id="div-box-body-login" class="box-body">
+	<form role="form">
+	<div class="form-group">
+		<label>Username</label>
+		{{input id="login-input-username" type="text" value=username class="form-control" placeholder="username@twyr.com"}}
+	</div>
+	<div class="form-group">
+		<label>Password</label>
+		{{input id="login-input-password" type="password" value=password class="form-control" placeholder="password"}}
+	</div>
+	<div class="row" style="margin:0px -10px; border-top:1px solid #eee; padding-top:10px;">
+		<div class="col-md-6" style="text-align:left;">
+			<a href="#" {{action "controller-action" "showResetPasswordForm"}}>Forgot Password</a>
+			<br />
+			<a href="#" {{action "controller-action" "showRegisterAccountForm"}}>Register Account</a>
+		</div>
+		<div class="col-md-6" style="text-align:right;">
+			<button id="login-button-submit" type="submit" class="btn btn-block" style="margin-top:5px;" {{action "controller-action" "doLogin"}}>Login</button>
+		</div>
+	</div>
+	</form>
+</div>
+
+<div id="div-box-body-reset-password" class="box-body" style="display:none;">
+	<form role="form">
+	<div class="form-group">
+		<label>Twy&apos;r Web Application Username</label>
+		{{input id="reset-password-input-username" type="text" value=resetUsername class="form-control" placeholder="username@twyr.com"}}
+	</div>
+	<div class="row" style="margin:0px -10px; border-top:1px solid #eee; padding-top:10px;">
+		<div class="col-md-6" style="text-align:left;">
+			<a href="#" {{action "controller-action" "showLoginForm"}}>Twy&apos;r Login</a>
+			<br />
+			<a href="#" {{action "controller-action" "showRegisterAccountForm"}}>Register Account</a>
+		</div>
+		<div class="col-md-6" style="text-align:right;">
+			<button id="reset-password-button-submit" type="submit" class="btn btn-md" style="margin-top:5px;" {{action "controller-action" "resetPassword"}}>Reset</button>
+		</div>
+	</div>
+	</form>
+</div>
+
+<div id="div-box-body-register-account" class="box-body" style="display:none;">
+	<form role="form">
+	<div class="form-group">
+		<label>Username / Login<sup>*</sup></label>
+		{{input id="register-account-input-username" type="email" value=registerUsername class="form-control" placeholder="username@twyr.com"}}
+	</div>
+	<div class="form-group">
+		<label>First Name<sup>*</sup></label>
+		{{input id="register-account-input-firstname" type="text" value=registerFirstname class="form-control" placeholder="First/Given Name"}}
+	</div>
+	<div class="form-group">
+		<label>Last Name<sup>*</sup></label>
+		{{input id="register-account-input-lastname" type="text" value=registerLastname class="form-control" placeholder="Last/Family Name or Surname"}}
+	</div>
+	<div class="row" style="margin:0px -10px; border-top:1px solid #eee; padding-top:10px;">
+		<div class="col-md-6" style="text-align:left;">
+			<a href="#" {{action "controller-action" "showLoginForm"}}>Twy&apos;r Login</a>
+			<br />
+			<a href="#" {{action "controller-action" "showResetPasswordForm"}}>Forgot Password</a>
+		</div>
+		<div class="col-md-6" style="text-align:right;">
+			<button id="register-account-button-submit" type="submit" class="btn btn-block" style="margin-top:5px;" {{action "controller-action" "registerAccount"}}>Register</button>
+		</div>
+	</div>
+	</form>
+</div>
+</div>
+
+</script>

@@ -1,0 +1,31 @@
+define(
+	'twyr-webapp/routes/<%- routeName %>',
+	['exports', 'ember'],
+	function(exports, _ember) {
+		if(window.developmentMode) console.log('DEFINE: twyr-webapp/routes/<%- routeName %>');
+		exports['default'] = _ember['default'].Route.extend({
+			'_routeName': '<%- routeName.replace(/\//g, '.').replace('.index', '') %>',
+
+			'redirect': function(model, transition) {
+				const transitionName = (transition.handlerInfos[(transition.handlerInfos.length - 1)]['name']).replace('.index', '');
+				if(transitionName == this.get('_routeName')) this.replaceWith('<%- routePath %>');
+			}
+		});
+	}
+);
+
+define(
+	'twyr-webapp/routes/<%- routeName %>/index',
+	['exports', 'ember'],
+	function(exports, _ember) {
+		if(window.developmentMode) console.log('DEFINE: twyr-webapp/routes/<%- routeName %>/index');
+		exports['default'] = _ember['default'].Route.extend({
+			'_routeName': '<%- routeName.replace(/\//g, '.') %>.index',
+
+			'redirect': function(model, transition) {
+				const transitionName = (transition.handlerInfos[(transition.handlerInfos.length - 1)]['name']);
+				if(transitionName == this.get('_routeName')) this.replaceWith('<%- routePath %>');
+			}
+		});
+	}
+);
