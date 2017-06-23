@@ -20,7 +20,8 @@ const promises = require('bluebird');
  * Module dependencies, required for this module
  * @ignore
  */
-const TwyrBaseModule = require('./TwyrBaseModule').TwyrBaseModule;
+const TwyrBaseError = require('./TwyrBaseError').TwyrBaseError,
+	TwyrBaseModule = require('./TwyrBaseModule').TwyrBaseModule;
 
 class TwyrWebApp extends TwyrBaseModule {
 	constructor(application, clusterId, workerId) {
@@ -116,8 +117,6 @@ class TwyrWebApp extends TwyrBaseModule {
 			}
 
 			expressApp.use((request, response, next) => {
-				loggerSrvc.debug(`Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\n`);
-
 				const cacheSrvc = this.$services.CacheService.Interface,
 					mediaType = request.device.type,
 					renderAsync = promises.promisify(response.render.bind(response));
@@ -162,13 +161,12 @@ class TwyrWebApp extends TwyrBaseModule {
 					return null;
 				})
 				.catch((err) => {
-					loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
+					const errMessage = (err instanceof TwyrBaseError) ? err.toString() : err.message;
+					loggerSrvc.error(`Error saving twyr!webapp!${mediaType}!user!${user.id}!${tenant}!indexTemplate to the cache:\n${errMessage}`);
 				});
 			});
 
 			expressApp.use((error, request, response, next) => {
-				loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${error.stack}\n`);
-
 				if(request.xhr)
 					response.status(422).json({ 'error': error.message });
 				else

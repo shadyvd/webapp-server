@@ -1,5 +1,6 @@
 exports.config = ({
 	"File": {
+		"name": "File",
 		"json": false,
 		"level": "debug",
 		"maxsize": 10485760,
@@ -14,6 +15,7 @@ exports.config = ({
 		"humanReadableUnhandledException": true
 	},
 	"Console": {
+		"name": "Console",
 		"json": false,
 		"level": "debug",
 		"colorize": true,

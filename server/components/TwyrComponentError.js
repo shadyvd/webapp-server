@@ -23,8 +23,8 @@
 const TwyrBaseError = require('./../TwyrBaseError').TwyrBaseError;
 
 class TwyrComponentError extends TwyrBaseError {
-	constructor(message) {
-		super(message);
+	constructor(message, inner) {
+		super(message, inner);
 	}
 }
 

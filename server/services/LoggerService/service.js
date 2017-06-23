@@ -148,7 +148,7 @@ class LoggerService extends TwyrBaseService {
 				continue;
 
 			try {
-				if(winstonInstance.transports[transportIdx]) winstonInstance.remove(transportIdx);
+				winstonInstance.remove(transportIdx);
 			}
 			catch(err) {
 				if((process.env.NODE_ENV || 'development') === 'development') console.error(`Error Removing ${transportIdx} from the Winston instance: ${err.stack}`);
