@@ -20,7 +20,7 @@
 	"main": "index.js",
 	"scripts": {
 		"docgen": "./node_modules/jsdoc/jsdoc.js --configure ./jsdoc.json",
-		"postinstall": "npm install jsonapi-mapper && touch ./logs/init.log",
+		"postinstall": "touch ./logs/init.log",
 		"start": "rm ./logs/*.log && node index.js | tee ./logs/console.log",
 		"test": "NODE_ENV=test mocha --recursive ./tests"
 	},
