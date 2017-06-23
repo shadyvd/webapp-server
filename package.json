@@ -76,6 +76,7 @@
 		"node-uuid": "*",
 		"nodemailer": "*",
 		"nodemailer-smtp-transport": "*",
+		"on-finished": "*",
 		"passport": "*",
 		"passport-facebook": "*",
 		"passport-github": "*",

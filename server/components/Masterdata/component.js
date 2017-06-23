@@ -44,10 +44,7 @@ class Masterdata extends TwyrBaseComponent {
 	}
 
 	_getGenders(request, response) {
-		const apiService = this.$dependencies.ApiService,
-			loggerSrvc = this.$dependencies.LoggerService;
-
-		loggerSrvc.debug(`Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${request.body.username}\n`);
+		const apiService = this.$dependencies.ApiService;
 		response.type('application/javascript');
 
 		this._dummyAsync()
@@ -60,16 +57,13 @@ class Masterdata extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
+//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
 			response.status(400).json({ 'code': 400, 'message': err.message });
 		});
 	}
 
 	_getContactTypes(request, response) {
-		const apiService = this.$dependencies.ApiService,
-			loggerSrvc = this.$dependencies.LoggerService;
-
-		loggerSrvc.debug(`Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${request.body.username}\n`);
+		const apiService = this.$dependencies.ApiService;
 		response.type('application/javascript');
 
 		this._dummyAsync()
@@ -82,7 +76,7 @@ class Masterdata extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
+//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
 			response.status(400).json({ 'code': 400, 'message': err.message });
 		});
 	}

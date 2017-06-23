@@ -91,16 +91,11 @@ class Applications extends TwyrBaseComponent {
 	_getTenantLogo(request, response, next) {
 		const path = require('path');
 
-		const loggerSrvc = this.$dependencies.LoggerService,
-			rootPath = path.dirname(require.main.filename);
-
+		const rootPath = path.dirname(require.main.filename);
 		const logoFolder = path.isAbsolute(this.$config.tenantAssetsPath) ? this.$config.tenantAssetsPath : path.join(rootPath, this.$config.tenantAssetsPath);
 
 		const defaultPath = path.join(logoFolder, 'www', 'img/logo.png'),
 			logoPath = path.join(logoFolder, request.tenant, 'img/logo.png');
-
-		loggerSrvc.debug(`Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${request.body.username}\n`);
-
 		this._dummyAsync()
 		.then(() => {
 			return promises.all([this._existsAsync(logoPath), this._existsAsync(defaultPath)]);
@@ -127,10 +122,7 @@ class Applications extends TwyrBaseComponent {
 	}
 
 	_getApplicationsWithCategory(request, response) {
-		const apiService = this.$dependencies.ApiService,
-			loggerSrvc = this.$dependencies.LoggerService;
-
-		loggerSrvc.debug(`Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${request.body.username}\n`);
+		const apiService = this.$dependencies.ApiService;
 		response.type('application/javascript');
 
 		this._dummyAsync()
@@ -143,7 +135,7 @@ class Applications extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
+//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
 			response.status(400).json({
 				'errors': [{
 					'status': 400,

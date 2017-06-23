@@ -22,13 +22,29 @@
  * @ignore
  */
 
+const _innerError = Symbol();
+
 class TwyrBaseError extends Error {
-	constructor(message) {
+	constructor(message, inner) {
+		if(inner && !(inner instanceof Error)) throw new Error('Inner Errors must be instances of Error');
+
 		super(message);
+		this[_innerError] = inner;
 		Error.captureStackTrace(this, this.constructor);
 	}
 
+	toString() {
+		if(!this.inner)
+			return `\n${this.stack}\n`;
+
+		if(!(this.inner instanceof TwyrBaseError))
+			return `\n${this.stack}\n\n========>>\n\n${this.inner.stack}\n`;
+
+		return `\n${this.stack}\n\n========>>\n${this.inner.toString()}\n`;
+	}
+
 	get name() { return this.constructor.name; }
+	get inner() { return this[_innerError]; }
 }
 
 exports.TwyrBaseError = TwyrBaseError;

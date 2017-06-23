@@ -20,7 +20,8 @@ const promises = require('bluebird');
  * Module dependencies, required for this module
  * @ignore
  */
-const TwyrBaseService = require('./../TwyrBaseService').TwyrBaseService;
+const TwyrBaseError = require('./../../TwyrBaseError').TwyrBaseError,
+	TwyrBaseService = require('./../TwyrBaseService').TwyrBaseService;
 
 class ExpressService extends TwyrBaseService {
 	constructor(module) {
@@ -199,6 +200,7 @@ class ExpressService extends TwyrBaseService {
 				return;
 			}
 
+			request.twyrId = uuid.v4().toString();
 			next();
 		})
 		.use(debounce())
@@ -259,15 +261,6 @@ class ExpressService extends TwyrBaseService {
 				return cacheMulti.execAsync();
 			})
 			.then(() => {
-				const requestDomain = require('domain').create();
-				requestDomain.add(request);
-				requestDomain.add(response);
-
-				requestDomain.on('error', (error) => {
-					loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${error.stack}`);
-					response.status(500).redirect('/error');
-				});
-
 				next();
 			})
 			.catch((err) => {
@@ -299,14 +292,40 @@ class ExpressService extends TwyrBaseService {
 		device.enableDeviceHelpers(webServer);
 
 		// Step 6: Create the Server
-		const protocol = require(this.$config.protocol || 'http');
+		const onFinished = require('on-finished'),
+			protocol = require(this.$config.protocol || 'http');
+
+		const requestResponseCycleHandler = (request, response) => {
+			onFinished(request, (err) => {
+				if(err) {
+					const errMessage = (err instanceof TwyrBaseError) ? err.toString() : err.message;
+					loggerSrvc.error(`\nError Servicing request ${request.twyrId}:\nURL: ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${errMessage}\n`);
+				}
+				else {
+					const errMessage = 'None';
+					loggerSrvc.debug(`Servicing request ${request.twyrId}:\nURL: ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${errMessage}\n`);
+				}
+			});
+
+			onFinished(response, (err) => {
+				if(err) {
+					const errMessage = (err instanceof TwyrBaseError) ? err.toString() : err.message;
+					loggerSrvc.error(`\nError sending response for ${request.twyrId}:\nURL: ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${errMessage}\n`);
+				}
+//				else
+//					loggerSrvc.debug(`Sent response for ${request.twyrId}:\nURL: ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\n`);
+			});
+
+			webServer(request, response);
+		};
+
 		if((this.$config.protocol || 'http') === 'http')
-			this.$server = promises.promisifyAll(protocol.createServer(webServer));
+			this.$server = promises.promisifyAll(protocol.createServer(requestResponseCycleHandler));
 		else {
 			this.$config.ssl.key = filesystem.readFileSync(path.join(__dirname, this.$config.ssl.key));
 			this.$config.ssl.cert = filesystem.readFileSync(path.join(__dirname, this.$config.ssl.cert));
 
-			this.$server = promises.promisifyAll(protocol.createServer(this.$config.ssl, webServer));
+			this.$server = promises.promisifyAll(protocol.createServer(this.$config.ssl, requestResponseCycleHandler));
 		}
 
 		// Step 7: Setup start flow listening

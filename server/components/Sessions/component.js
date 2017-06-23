@@ -99,10 +99,7 @@ class Sessions extends TwyrBaseComponent {
 	}
 
 	_login(request, response) {
-		const apiService = this.$dependencies.ApiService,
-			loggerSrvc = this.$dependencies.LoggerService;
-
-		loggerSrvc.debug(`Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${request.body.username}\n`);
+		const apiService = this.$dependencies.ApiService;
 		response.type('application/javascript');
 
 		this._dummyAsync()
@@ -116,7 +113,7 @@ class Sessions extends TwyrBaseComponent {
 			});
 		})
 		.catch((err) => {
-			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
+//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
 			response.status(200).json({
 				'status': false,
 				'responseText': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
@@ -125,10 +122,7 @@ class Sessions extends TwyrBaseComponent {
 	}
 
 	_logout(request, response) {
-		const apiService = this.$dependencies.ApiService,
-			loggerSrvc = this.$dependencies.LoggerService;
-
-		loggerSrvc.debug(`Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${request.body.username}\n`);
+		const apiService = this.$dependencies.ApiService;
 		response.type('application/javascript');
 
 		this._dummyAsync()
@@ -142,7 +136,7 @@ class Sessions extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
+//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
 			response.status(200).json({
 				'status': false,
 				'responseText': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
@@ -151,10 +145,7 @@ class Sessions extends TwyrBaseComponent {
 	}
 
 	_resetPassword(request, response) {
-		const apiService = this.$dependencies.ApiService,
-			loggerSrvc = this.$dependencies.LoggerService;
-
-		loggerSrvc.debug(`Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${request.body.username}\n`);
+		const apiService = this.$dependencies.ApiService;
 		response.type('application/javascript');
 
 		this._dummyAsync()
@@ -170,7 +161,7 @@ class Sessions extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
+//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
 			response.status(200).json({
 				'status': false,
 				'responseText': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
@@ -179,10 +170,7 @@ class Sessions extends TwyrBaseComponent {
 	}
 
 	_registerAccount(request, response) {
-		const apiService = this.$dependencies.ApiService,
-			loggerSrvc = this.$dependencies.LoggerService;
-
-		loggerSrvc.debug(`Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${request.body.username}\n`);
+		const apiService = this.$dependencies.ApiService;
 		response.type('application/javascript');
 
 		this._dummyAsync()
@@ -198,7 +186,7 @@ class Sessions extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
+//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
 			response.status(200).json({
 				'status': false,
 				'responseText': err.stack.split('\n', 1)[0].replace('error: ', '').trim()

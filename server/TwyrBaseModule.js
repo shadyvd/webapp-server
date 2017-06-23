@@ -394,8 +394,8 @@ class TwyrBaseModule extends EventEmitter {
 	}
 
 	_handleUncaughtException(err) {
-		const uncaughtException = new TwyrBaseError(err.message);
-		console.error(`${this.name}::_handleUncaughtException::err:\n${uncaughtException.stack}`);
+		const uncaughtException = new TwyrBaseError(`${this.name} uncaught exception`, err);
+		console.error(uncaughtException);
 	}
 
 	get name() { return this.constructor.name; }
