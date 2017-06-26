@@ -32,18 +32,6 @@ exports.config = {
 		'secure': false,
 		'httpOnly': false
 	},
-	'i18n': {
-		'directory': 'i18n',
-
-		'locales': ['en'],
-		'defaultLocale': 'en',
-
-		'cookie': 'twyr-webapp-locale',
-
-		'autoReload': false,
-		'updateFiles': true,
-		'syncFiles': true
-	},
 	'maxRequestSize': 5242880,
 	'requestTimeout': 25,
 	'templateEngine': 'ejs',

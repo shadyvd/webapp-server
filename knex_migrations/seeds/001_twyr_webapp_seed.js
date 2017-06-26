@@ -54,7 +54,7 @@ exports.seed = function(knex, Promise) {
 						}
 					}),
 					knex('modules').insert({
-						'parent': parentId,
+						'parent': parentId[0],
 						'type': 'service',
 						'admin_only': true,
 						'name': 'AuthService',
@@ -69,7 +69,7 @@ exports.seed = function(knex, Promise) {
 						}
 					}),
 					knex('modules').insert({
-						'parent': parentId,
+						'parent': parentId[0],
 						'type': 'service',
 						'admin_only': true,
 						'name': 'CacheService',
@@ -84,7 +84,7 @@ exports.seed = function(knex, Promise) {
 						}
 					}),
 					knex('modules').insert({
-						'parent': parentId,
+						'parent': parentId[0],
 						'type': 'service',
 						'admin_only': true,
 						'name': 'DatabaseService',
@@ -99,7 +99,7 @@ exports.seed = function(knex, Promise) {
 						}
 					}),
 					knex('modules').insert({
-						'parent': parentId,
+						'parent': parentId[0],
 						'type': 'service',
 						'admin_only': true,
 						'name': 'ExpressService',
@@ -114,7 +114,22 @@ exports.seed = function(knex, Promise) {
 						}
 					}),
 					knex('modules').insert({
-						'parent': parentId,
+						'parent': parentId[0],
+						'type': 'service',
+						'admin_only': true,
+						'name': 'LocalizationService',
+						'display_name': 'Localization Service',
+						'description': 'The Twy\'r Web Application Localization Service',
+						'metadata': {
+							'author': 'Twy\'r',
+							'version': '1.8.3',
+							'website': 'https://twyr.github.io',
+							'demo': 'https://twyr.github.io',
+							'documentation': 'https://twyr.github.io'
+						}
+					}),
+					knex('modules').insert({
+						'parent': parentId[0],
 						'type': 'service',
 						'admin_only': true,
 						'name': 'LoggerService',
@@ -129,7 +144,7 @@ exports.seed = function(knex, Promise) {
 						}
 					}),
 					knex('modules').insert({
-						'parent': parentId,
+						'parent': parentId[0],
 						'type': 'service',
 						'admin_only': true,
 						'name': 'MailerService',
@@ -144,7 +159,7 @@ exports.seed = function(knex, Promise) {
 						}
 					}),
 					knex('modules').insert({
-						'parent': parentId,
+						'parent': parentId[0],
 						'type': 'service',
 						'admin_only': true,
 						'name': 'PubsubService',
@@ -159,7 +174,7 @@ exports.seed = function(knex, Promise) {
 						}
 					}),
 					knex('modules').insert({
-						'parent': parentId,
+						'parent': parentId[0],
 						'type': 'service',
 						'admin_only': true,
 						'name': 'WebsocketService',
@@ -174,7 +189,7 @@ exports.seed = function(knex, Promise) {
 						}
 					}),
 					knex('modules').insert({
-						'parent': parentId,
+						'parent': parentId[0],
 						'type': 'service',
 						'admin_only': true,
 						'name': 'ConfigurationService',
@@ -206,7 +221,7 @@ exports.seed = function(knex, Promise) {
 								}
 							}),
 							knex('modules').insert({
-								'parent': configSrvcId,
+								'parent': configSrvcId[0],
 								'type': 'service',
 								'admin_only': true,
 								'name': 'DatabaseConfigurationService',
@@ -223,7 +238,7 @@ exports.seed = function(knex, Promise) {
 						]);
 					}),
 					knex('modules').insert({
-						'parent': parentId,
+						'parent': parentId[0],
 						'type': 'template',
 						'admin_only': true,
 						'name': 'BhairaviTemplate',
@@ -244,7 +259,7 @@ exports.seed = function(knex, Promise) {
 								'media': 'desktop'
 							}),
 							knex('server_templates').insert({
-								'module': bhairaviTemplateId,
+								'module': bhairaviTemplateId[0],
 								'media': 'tablet'
 							})
 						]);
@@ -253,27 +268,27 @@ exports.seed = function(knex, Promise) {
 			})
 			.then(function(parentId) {
 				return Promise.all([
-					parentId,
+					parentId[0],
 					knex('component_permissions').insert({
-						'module': parentId[0],
+						'module': parentId[0][0],
 						'name': 'public',
 						'display_name': 'Public User Permissions',
 						'description': 'The Twy\'r Web Application Permissions for non-logged-in Users'
 					}).returning('id'),
 					knex('component_permissions').insert({
-						'module': parentId[0],
+						'module': parentId[0][0],
 						'name': 'registered',
 						'display_name': 'Registered User Permissions',
 						'description': 'The Twy\'r Web Application Permissions for logged-in Users'
 					}).returning('id'),
 					knex('component_permissions').insert({
-						'module': parentId[0],
+						'module': parentId[0][0],
 						'name': 'administrator',
 						'display_name': 'Administrator Permissions',
 						'description': 'The Twy\'r Web Application Permissions for Administrators'
 					}).returning('id'),
 					knex('component_permissions').insert({
-						'module': parentId[0],
+						'module': parentId[0][0],
 						'name': 'super-administrator',
 						'display_name': 'Super Administrator Permissions',
 						'description': 'The Twy\'r Web Application Permissions for Super Administrators'

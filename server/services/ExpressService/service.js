@@ -113,10 +113,10 @@ class ExpressService extends TwyrBaseService {
 			favicon = require('serve-favicon'),
 			flash = require('connect-flash'),
 			fs = require('fs-extra'),
-			i18n = require('i18n'),
 			logger = require('morgan'),
 			methodOverride = require('method-override'),
 			moment = require('moment'),
+			onFinished = require('on-finished'),
 			path = require('path'),
 			poweredBy = require('connect-powered-by'),
 			serveStatic = require('serve-static'),
@@ -172,13 +172,30 @@ class ExpressService extends TwyrBaseService {
 			}
 		});
 
-		const i18Config = JSON.parse(JSON.stringify(this.$config.i18n));
-		i18Config.directory = path.isAbsolute(i18Config.directory) ? i18Config.directory : path.join(path.dirname(require.main.filename), i18Config.directory);
-		i18Config.logDebugFn = (message) => { loggerSrvc.debug(message); };
-		i18Config.logWarnFn = (message) => { loggerSrvc.warn(message); };
-		i18Config.logErrorFn = (message) => { loggerSrvc.error(message); };
+		const requestResponseCycleHandler = (request, response, next) => {
+			const logMsgMeta = {
+				'user': 'Anonymous',
+				'query': JSON.parse(JSON.stringify(request.query)),
+				'params': JSON.parse(JSON.stringify(request.params)),
+				'body': JSON.parse(JSON.stringify(request.body))
+			};
 
-		i18n.configure(this.$config.i18n);
+			onFinished(response, () => {
+				logMsgMeta.user = request.user ? `${request.user.first_name} ${request.user.last_name}` : logMsgMeta.user;
+				loggerSrvc.debug(`Serviced Request ${request.twyrId} - ${request.method} ${request.originalUrl}:`, logMsgMeta);
+			});
+
+			onFinished(request, (err) => {
+				if(err) {
+					logMsgMeta.user = request.user ? `${request.user.first_name} ${request.user.last_name}` : logMsgMeta.user;
+					logMsgMeta.error = err instanceof TwyrBaseError ? err.toString() : err.message;
+
+					loggerSrvc.error(`Error servicing Request ${request.twyrId} - ${request.method} ${request.originalUrl}:`, logMsgMeta);
+				}
+			});
+
+			next();
+		};
 
 		// Step 5: Setup Express
 		const webServer = express();
@@ -195,12 +212,13 @@ class ExpressService extends TwyrBaseService {
 			'stream': loggerStream
 		}))
 		.use((request, response, next) => {
+			request.twyrId = uuid.v4().toString();
+
 			if(!this.$enabled) {
 				response.status(500).redirect('/error');
 				return;
 			}
 
-			request.twyrId = uuid.v4().toString();
 			next();
 		})
 		.use(debounce())
@@ -218,11 +236,30 @@ class ExpressService extends TwyrBaseService {
 		.use(flash())
 		.use(_cookieParser)
 		.use(_session)
-		.use(i18n.init)
+		.use(bodyParser.raw({
+			'limit': this.$config.maxRequestSize
+		}))
+		.use(bodyParser.urlencoded({
+			'extended': true,
+			'limit': this.$config.maxRequestSize
+		}))
+		.use(bodyParser.json({
+			'limit': this.$config.maxRequestSize
+		}))
+		.use(bodyParser.json({
+			'type': 'application/vnd.api+json',
+			'limit': this.$config.maxRequestSize
+		}))
+		.use(bodyParser.text({
+			'limit': this.$config.maxRequestSize
+		}))
+		.use(device.capture())
+		.use(this.$dependencies.LocalizationService.init)
 		.use((request, response, next) => {
 			response.cookie('twyr-webapp-locale', request.getLocale(), this.$config.cookieParser);
 			next();
 		})
+		.use(requestResponseCycleHandler)
 		.use((request, response, next) => {
 			const cacheSrvc = this.$dependencies.CacheService,
 				dbSrvc = this.$dependencies.DatabaseService.knex;
@@ -267,24 +304,6 @@ class ExpressService extends TwyrBaseService {
 				next(err);
 			});
 		})
-		.use(bodyParser.raw({
-			'limit': this.$config.maxRequestSize
-		}))
-		.use(bodyParser.urlencoded({
-			'extended': true,
-			'limit': this.$config.maxRequestSize
-		}))
-		.use(bodyParser.json({
-			'limit': this.$config.maxRequestSize
-		}))
-		.use(bodyParser.json({
-			'type': 'application/vnd.api+json',
-			'limit': this.$config.maxRequestSize
-		}))
-		.use(bodyParser.text({
-			'limit': this.$config.maxRequestSize
-		}))
-		.use(device.capture())
 		.use(this.$dependencies.AuthService.initialize())
 		.use(this.$dependencies.AuthService.session());
 
@@ -292,57 +311,29 @@ class ExpressService extends TwyrBaseService {
 		device.enableDeviceHelpers(webServer);
 
 		// Step 6: Create the Server
-		const onFinished = require('on-finished'),
-			protocol = require(this.$config.protocol || 'http');
-
-		const requestResponseCycleHandler = (request, response) => {
-			onFinished(request, (err) => {
-				if(err) {
-					const errMessage = (err instanceof TwyrBaseError) ? err.toString() : err.message;
-					loggerSrvc.error(`\nError Servicing request ${request.twyrId}:\nURL: ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${errMessage}\n`);
-				}
-				else {
-					const errMessage = 'None';
-					loggerSrvc.debug(`Servicing request ${request.twyrId}:\nURL: ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${errMessage}\n`);
-				}
-			});
-
-			onFinished(response, (err) => {
-				if(err) {
-					const errMessage = (err instanceof TwyrBaseError) ? err.toString() : err.message;
-					loggerSrvc.error(`\nError sending response for ${request.twyrId}:\nURL: ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${errMessage}\n`);
-				}
-//				else
-//					loggerSrvc.debug(`Sent response for ${request.twyrId}:\nURL: ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\n`);
-			});
-
-			webServer(request, response);
-		};
+		const protocol = require(this.$config.protocol || 'http');
 
 		if((this.$config.protocol || 'http') === 'http')
-			this.$server = promises.promisifyAll(protocol.createServer(requestResponseCycleHandler));
+			this.$server = promises.promisifyAll(protocol.createServer(webServer));
 		else {
 			this.$config.ssl.key = filesystem.readFileSync(path.join(__dirname, this.$config.ssl.key));
 			this.$config.ssl.cert = filesystem.readFileSync(path.join(__dirname, this.$config.ssl.cert));
 
-			this.$server = promises.promisifyAll(protocol.createServer(this.$config.ssl, requestResponseCycleHandler));
+			this.$server = promises.promisifyAll(protocol.createServer(this.$config.ssl, webServer));
 		}
 
-		// Step 7: Setup start flow listening
-		this.$server.once('error', (error) => {
-			if(callback) callback(error);
-		});
-
-		this.$server.once('listening', () => {
+		// Finally, start listening...
+		this.$server.listenAsync(this.$config.port[this.$module.name] || 9090, undefined, undefined)
+		.then(() => {
 			this.$server.on('connection', this._serverConnection.bind(this));
 			this.$server.on('error', this._serverError.bind(this));
 
 			if(callback) callback(null, true);
+		})
+		.catch((err) => {
+			loggerSrvc.error(`Error listening on ${this.$config.port[this.$module.name] || 9090}:\n${err.stack}`);
+			if(callback) callback(err);
 		});
-
-		// Step 8: Start listening...
-		this.$express.set('port', this.$config.port[this.$module.name]);
-		this.$server.listen(this.$config.port[this.$module.name] || 9090);
 
 		// Miscellaneous...
 		this.$express.$server = this.$server;
@@ -389,7 +380,7 @@ class ExpressService extends TwyrBaseService {
 
 	get Interface() { return this.$express; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['AuthService', 'CacheService', 'ConfigurationService', 'DatabaseService', 'LoggerService']; }
+	get dependencies() { return ['AuthService', 'CacheService', 'ConfigurationService', 'DatabaseService', 'LocalizationService', 'LoggerService']; }
 }
 
 exports.service = ExpressService;

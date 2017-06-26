@@ -20,7 +20,9 @@ const promises = require('bluebird');
  * Module dependencies, required for this module
  * @ignore
  */
-const TwyrBaseComponent = require('./../TwyrBaseComponent').TwyrBaseComponent;
+const TwyrBaseComponent = require('./../TwyrBaseComponent').TwyrBaseComponent,
+	TwyrComponentError = require('./../TwyrComponentError').TwyrComponentError,
+	TwyrJSONAPIError = require('./../TwyrComponentError').TwyrJSONAPIError;
 
 class Sessions extends TwyrBaseComponent {
 	constructor(module) {
@@ -41,7 +43,11 @@ class Sessions extends TwyrBaseComponent {
 			super._addRoutes(callback);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error adding routes`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -62,20 +68,27 @@ class Sessions extends TwyrBaseComponent {
 
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error reading Ember Components`, err);
+			throw error;
+		})
 		.then((componentJS) => {
 			if(callback) callback(null, componentJS);
 			return null;
 		})
 		.catch((err) => {
-			const loggerSrvc = this.$dependencies.LoggerService;
-			loggerSrvc.error(`${this.name}::_getEmberComponents:\nUser: ${user}\nMediaType: ${mediaType}\nError: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error returning Ember Components`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
 	_getEmberComponentHTMLs(tenant, user, mediaType, renderer, callback) {
 		const path = require('path');
-		const loggerSrvc = this.$dependencies.LoggerService;
 
 		this._dummyAsync()
 		.then(() => {
@@ -88,23 +101,38 @@ class Sessions extends TwyrBaseComponent {
 
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error reading Ember Component HTMLs`, err);
+			throw error;
+		})
 		.then((componentHTML) => {
 			if(callback) callback(null, componentHTML);
 			return null;
 		})
 		.catch((err) => {
-			loggerSrvc.error(`${this.name}::_getEmberComponentHTMLs:\nUser: ${user}\nMediaType: ${mediaType}\nError: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error returning Ember Component HTMLs`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
-	_login(request, response) {
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
-
+	_login(request, response, next) {
 		this._dummyAsync()
 		.then(() => {
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('User::login', [request.user, request.device.type]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error executing user login`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then(() => {
 			response.status(200).json({
@@ -113,21 +141,29 @@ class Sessions extends TwyrBaseComponent {
 			});
 		})
 		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(200).json({
-				'status': false,
-				'responseText': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
-			});
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending login response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 
-	_logout(request, response) {
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
-
+	_logout(request, response, next) {
 		this._dummyAsync()
 		.then(() => {
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('User::logout', [request.user, request.device.type]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error executing user logout`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then(() => {
 			request.logout();
@@ -136,21 +172,29 @@ class Sessions extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(200).json({
-				'status': false,
-				'responseText': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
-			});
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending logout response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 
-	_resetPassword(request, response) {
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
-
+	_resetPassword(request, response, next) {
 		this._dummyAsync()
 		.then(() => {
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('User::resetPassword', [request.body.username, promises.promisify(response.render.bind(response))]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error executing reset password`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then((status) => {
 			response.status(200).json({
@@ -161,21 +205,29 @@ class Sessions extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(200).json({
-				'status': false,
-				'responseText': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
-			});
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending reset password response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 
-	_registerAccount(request, response) {
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
-
+	_registerAccount(request, response, next) {
 		this._dummyAsync()
 		.then(() => {
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('User::registerAccount', [request.body.username, request.body.firstname, request.body.lastname, promises.promisify(response.render.bind(response))]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error executing register account`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then((status) => {
 			response.status(200).json({
@@ -186,11 +238,13 @@ class Sessions extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(200).json({
-				'status': false,
-				'responseText': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
-			});
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending register account response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 

@@ -30,17 +30,18 @@ class TwyrBaseError extends Error {
 
 		super(message);
 		this[_innerError] = inner;
+
 		Error.captureStackTrace(this, this.constructor);
 	}
 
 	toString() {
-		if(!this.inner)
-			return `\n${this.stack}\n`;
+		const errstr = `\n${this.stack}\n`;
+		if(!this.inner) return errstr;
 
 		if(!(this.inner instanceof TwyrBaseError))
-			return `\n${this.stack}\n\n========>>\n\n${this.inner.stack}\n`;
+			return `\n${errstr}\n\n========>>\n\n${this.inner.stack}\n`;
 
-		return `\n${this.stack}\n\n========>>\n${this.inner.toString()}\n`;
+		return `\n${errstr}\n\n========>>\n${this.inner.toString()}\n`;
 	}
 
 	get name() { return this.constructor.name; }

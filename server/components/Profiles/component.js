@@ -20,7 +20,9 @@ const promises = require('bluebird');
  * Module dependencies, required for this module
  * @ignore
  */
-const TwyrBaseComponent = require('./../TwyrBaseComponent').TwyrBaseComponent;
+const TwyrBaseComponent = require('./../TwyrBaseComponent').TwyrBaseComponent,
+	TwyrComponentError = require('./../TwyrComponentError').TwyrComponentError,
+	TwyrJSONAPIError = require('./../TwyrComponentError').TwyrJSONAPIError;
 
 class Profiles extends TwyrBaseComponent {
 	constructor(module) {
@@ -64,7 +66,11 @@ class Profiles extends TwyrBaseComponent {
 			super._addRoutes(callback);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error adding routes`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -77,13 +83,19 @@ class Profiles extends TwyrBaseComponent {
 		super._getClientsideAssets(tenant, user, mediaType, renderer, callback);
 	}
 
-	_changePassword(request, response) {
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
-
+	_changePassword(request, response, next) {
 		this._dummyAsync()
 		.then(() => {
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('User::changePassword', [request.user, request.body]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error executing change password`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then(() => {
 			response.status(200).json({
@@ -94,26 +106,43 @@ class Profiles extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(200).json({
-				'status': false,
-				'responseText': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
-			});
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending change password response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 
-	_getProfileImage(request, response) {
+	_getProfileImage(request, response, next) {
 		const path = require('path');
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
 
 		this._dummyAsync()
 		.then(() => {
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('User::profile', [request.user]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error retrieving profile data`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then((profile) => {
 			const profileImageName = path.join(this.$profileImagePath, `${profile.data.attributes.profile_image}.png`);
 			return promises.all([profile, this._existsAsync(profileImageName)]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error checking profile image existence`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then((results) => {
 			const exists = results[1],
@@ -127,23 +156,35 @@ class Profiles extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(400).json({ 'code': 400, 'message': err.stack.split('\n', 1)[0].replace('error: ', '').trim() });
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending profile image`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 
-	_updateProfileImage(request, response) {
+	_updateProfileImage(request, response, next) {
 		const fs = require('fs'),
 			path = require('path'),
 			uuid = require('uuid');
 
 		const filesystem = promises.promisifyAll(fs);
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
 
 		this._dummyAsync()
 		.then(() => {
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('User::profile', [request.user]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error retrieving profile data`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then((profile) => {
 			const currentImageId = profile.data.attributes.profile_image,
@@ -156,17 +197,42 @@ class Profiles extends TwyrBaseComponent {
 
 			return promises.all([profile, currentImageId, filesystem.writeFileAsync(imagePath, Buffer.from(image, 'base64'))]);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error saving profile image`);
+			error.addErrorObject(err);
+
+			throw error;
+		})
 		.then((results) => {
 			const currentImageId = results[1],
 				profile = results[0];
 
+			const apiService = this.$dependencies.ApiService;
 			return promises.all([apiService.executeAsync('User::updateProfile', [profile]), currentImageId]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error updating profile data`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then((results) => {
 			const currentImageId = results[1];
 			if(!currentImageId) return null;
 
 			return filesystem.unlinkAsync(path.join(this.$profileImagePath, `${currentImageId}.png`));
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error deleting old profile image`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then(() => {
 			response.status(200).json({
@@ -177,12 +243,17 @@ class Profiles extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\n${err.stack}\n`);
-			response.status(400).json({ 'code': 400, 'message': err.stack.split('\n', 1)[0].replace('error: ', '').trim() });
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending profile image update response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 
-	_getProfile(request, response) {
+	_getProfile(request, response, next) {
 		const apiService = this.$dependencies.ApiService;
 		response.type('application/javascript');
 
@@ -190,31 +261,44 @@ class Profiles extends TwyrBaseComponent {
 		.then(() => {
 			return apiService.executeAsync('User::profile', [request.user]);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error retrieving profile data`);
+			error.addErrorObject(err);
+
+			throw error;
+		})
 		.then((profile) => {
 			response.status(200).json(profile);
 			return null;
 		})
 		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(400).json({
-				'errors': [{
-					'status': 400,
-					'source': { 'pointer': '/data' },
-					'title': 'Get profile error',
-					'detail': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
-				}]
-			});
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending profile image update response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 
-	_updateProfile(request, response) {
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
-
+	_updateProfile(request, response, next) {
 		this._dummyAsync()
 		.then(() => {
 			if(request.user.id !== request.params.id) throw new Error('Profile information of other users is private');
+
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('User::updateProfile', [request.body]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error updating profile data`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then((updatedProfile) => {
 			response.status(200).json({
@@ -226,51 +310,60 @@ class Profiles extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(400).json({
-				'errors': [{
-					'status': 400,
-					'source': { 'pointer': '/data' },
-					'title': 'Update profile error',
-					'detail': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
-				}]
-			});
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending profile update response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 
-	_deleteProfile(request, response) {
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
-
+	_deleteProfile(request, response, next) {
 		this._dummyAsync()
 		.then(() => {
 			if(request.user.id !== request.params.id) throw new Error('Profile information of other users is private');
+
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('User::deleteProfile', [request.params.id]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error deleting profile data`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then(() => {
 			response.status(204).json({});
 			return null;
 		})
 		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(400).json({
-				'errors': [{
-					'status': 400,
-					'source': { 'pointer': '/data' },
-					'title': 'Delete profile error',
-					'detail': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
-				}]
-			});
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending delete profile response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 
-	_getProfileContact(request, response) {
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
-
+	_getProfileContact(request, response, next) {
 		this._dummyAsync()
 		.then(() => {
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('User::contact', [request.params.id]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error retrieving profile contact data`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then((userContact) => {
 			if(userContact.data.attributes.login !== request.user.id) throw new Error('Contact information of other users is private');
@@ -278,27 +371,32 @@ class Profiles extends TwyrBaseComponent {
 
 			return null;
 		})
-		.catch(function(err) {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(400).json({
-				'errors': [{
-					'status': 400,
-					'source': { 'pointer': '/data' },
-					'title': 'Get profile contact error',
-					'detail': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
-				}]
-			});
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending profile contact response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 
-	_addProfileContact(request, response) {
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
-
+	_addProfileContact(request, response, next) {
 		this._dummyAsync()
 		.then(() => {
 			if(request.user.id !== request.body.data.relationships.login.data.id) throw new Error('Profile information of other users is private');
+
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('User::addContact', [request.body]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error adding profile contact data`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then((newContact) => {
 			response.status(201).json({
@@ -310,44 +408,56 @@ class Profiles extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(400).json({
-				'errors': [{
-					'status': 400,
-					'source': { 'pointer': '/data' },
-					'title': 'Add profile contact error',
-					'detail': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
-				}]
-			});
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending add profile contact response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 
-	_deleteProfileContact(request, response) {
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
-
+	_deleteProfileContact(request, response, next) {
 		this._dummyAsync()
 		.then(() => {
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('User::contact', [request.params.id]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error getting profile contact data`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then((userContact) => {
 			if(userContact.data.attributes.login !== request.user.id) throw new Error('Contact information of other users is private');
+
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('User::deleteContact', [request.params.id]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error deleting profile contact data`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then(() => {
 			response.status(204).json({});
 			return null;
 		})
 		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(400).json({
-				'errors': [{
-					'status': 400,
-					'source': { 'pointer': '/data' },
-					'title': 'Delete profile contact error',
-					'detail': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
-				}]
-			});
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending delete profile contact response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 

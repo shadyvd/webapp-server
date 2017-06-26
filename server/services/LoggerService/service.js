@@ -121,7 +121,20 @@ class LoggerService extends TwyrBaseService {
 
 		// Re-configure with new transports
 		this.$winston.configure({
-			'transports': transports
+			'transports': transports,
+			'rewriters': [(level, msg, meta) => {
+				Object.keys(meta).forEach((key) => {
+					const dangerousKeys = Object.keys(meta[key]).filter((metaKeyKey) => {
+						return (metaKeyKey.toLowerCase().indexOf('password') >= 0) || (metaKeyKey.toLowerCase().indexOf('image') >= 0);
+					});
+
+					dangerousKeys.forEach((dangerousKey) => {
+						delete meta[key][dangerousKey];
+					});
+				});
+
+				return `${JSON.stringify(meta, undefined, '\t')}\n\n`;
+			}]
 		});
 
 		// Ensure the logger isn't crashing the Server :-)

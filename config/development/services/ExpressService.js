@@ -4,17 +4,6 @@ exports.config = {
 		"cert": "./ssl/webapp.crt",
 		"rejectUnauthorized": false
 	},
-	"i18n": {
-		"cookie": "twyr-webapp-locale",
-		"locales": [
-			"en"
-		],
-		"directory": "i18n",
-		"syncFiles": true,
-		"autoReload": false,
-		"updateFiles": true,
-		"defaultLocale": "en"
-	},
 	"port": {
 		"TwyrWebApp": 9100
 	},
@@ -38,7 +27,7 @@ exports.config = {
 	"cookieParser": {
 		"path": "/",
 		"domain": ".twyr.com",
-		"maxAge": 1813664047248,
+		"maxAge": 1813990472411,
 		"secure": false,
 		"httpOnly": false
 	},

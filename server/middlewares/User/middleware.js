@@ -159,7 +159,7 @@ class User extends TwyrBaseMiddleware {
 	_login(user, mediaType, callback) {
 		const loggerSrvc = this.$dependencies.LoggerService;
 
-		loggerSrvc.debug(`Logged in: ${user.first_name} ${user.last_name} from ${mediaType}`);
+		loggerSrvc.debug(`Logged in: ${user.first_name} ${user.last_name} from ${mediaType}\n`);
 		this.$module.emit('login', user.id, mediaType);
 
 		if(callback) callback();
@@ -171,7 +171,7 @@ class User extends TwyrBaseMiddleware {
 
 		this._dummyAsync()
 		.then(() => {
-			loggerSrvc.debug(`Logged out: ${user.first_name} ${user.last_name} from ${mediaType}`);
+			loggerSrvc.debug(`Logged out: ${user.first_name} ${user.last_name} from ${mediaType}\n`);
 			this.$module.emit('logout', user.id);
 
 			return cacheSrvc.keysAsync(`twyr!webapp!${mediaType}!user!${user.id}*`);
