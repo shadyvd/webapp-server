@@ -20,7 +20,8 @@ const promises = require('bluebird');
  * Module dependencies, required for this module
  * @ignore
  */
-const TwyrBaseModule = require('./../TwyrBaseModule').TwyrBaseModule;
+const TwyrBaseModule = require('./../TwyrBaseModule').TwyrBaseModule,
+	TwyrComponentError = require('./TwyrComponentError').TwyrComponentError;
 
 class TwyrBaseComponent extends TwyrBaseModule {
 	constructor(module, loader) {
@@ -77,60 +78,95 @@ class TwyrBaseComponent extends TwyrBaseModule {
 	}
 
 	_setupRouter(callback) {
-		const expressLogger = require('morgan');
+		this._dummyAsync()
+		.then(() => {
+			const expressLogger = require('morgan');
 
-		const router = this.$router,
-			twyrLogger = this.$dependencies.LoggerService;
+			const loggerSrvc = this.$dependencies.LoggerService,
+				router = this.$router;
 
-		const loggerStream = {
-			'write': (message) => {
-				twyrLogger.silly(message);
-			}
-		};
+			const loggerStream = {
+				'write': (message) => {
+					loggerSrvc.silly(message);
+				}
+			};
 
-		router
-		.use(expressLogger('combined', {
-			'stream': loggerStream
-		}))
-		.use((request, response, next) => {
-			if(this.$enabled) {
-				next();
-				return;
-			}
+			router
+			.use(expressLogger('combined', {
+				'stream': loggerStream
+			}))
+			.use((request, response, next) => {
+				this._dummyAsync()
+				.then(() => {
+					if(this.$enabled) {
+						next();
+						return;
+					}
 
-			const httpErrors = require('http-errors');
-			const disabledError = httpErrors('404', `${this.name} is disabled`);
+					const httpErrors = require('http-errors');
+					throw httpErrors('404', `${this.name} is disabled`);
+				})
+				.catch((err) => {
+					let error = err;
+					if(!(error instanceof TwyrComponentError))
+						error = new TwyrComponentError(`${this.name} is disabled`, err);
 
-			twyrLogger.error(`${this.name} is disabled: ${disabledError}`);
-			next(disabledError);
+					next(error);
+				});
+			});
+
+			if(callback) callback(null, true);
+		})
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error setting up the router`, err);
+
+			if(callback) callback(error);
 		});
-
-		if(callback) callback();
 	}
 
 	_addRoutes(callback) {
-		const path = require('path');
+		this._dummyAsync()
+		.then(() => {
+			const path = require('path');
+			const mountPath = '/';
 
-		const loggerSrvc = this.$dependencies.LoggerService,
-			mountPath = '/';
+			Object.keys(this.$components).forEach((subComponentName) => {
+				const subRouter = this.$components[subComponentName].getRouter();
+				this.$router.use(path.join(mountPath, subComponentName), subRouter);
+			});
 
-		Object.keys(this.$components).forEach((subComponentName) => {
-			const subRouter = this.$components[subComponentName].getRouter();
-			this.$router.use(path.join(mountPath, subComponentName), subRouter);
+			this.$router.use((request, response, next) => {
+				const error = new TwyrComponentError(`Unknown route: ${request.originalUrl}`);
+				next(error);
+			});
+
+			if(callback) callback(null, true);
+		})
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error adding routes`, err);
+
+			if(callback) callback(error);
 		});
-
-		this.$router.use((request, response) => {
-			loggerSrvc.error(`Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${request.body.username}\n`);
-			response.sendStatus(404);
-		});
-
-		if(callback) callback();
 	}
 
 	_deleteRoutes(callback) {
 		// NOTICE: Undocumented ExpressJS API. Be careful upgrading :-)
-		if(this.$router) this.$router.stack.length = 0;
-		if(callback) callback();
+		this._dummyAsync()
+		.then(() => {
+			if(this.$router) this.$router.stack.length = 0;
+			if(callback) callback(null, true);
+		})
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error deleting routes`, err);
+
+			if(callback) callback(error);
+		});
 	}
 
 	_getEmptyClientsideAssets(tenant, user, mediaType, renderer, callback) {
@@ -147,7 +183,11 @@ class TwyrBaseComponent extends TwyrBaseModule {
 			if(callback) callback(null, emptyAssets);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error returning empty Ember assets`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -163,6 +203,12 @@ class TwyrBaseComponent extends TwyrBaseModule {
 			promiseResolutions.push(this._getEmberHelpersAsync(tenant, user, mediaType, renderer));
 
 			return promises.all(promiseResolutions);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error generating Ember assets`, err);
+			throw error;
 		})
 		.then((clientAssets) => {
 			const componentLevelAssets = {};
@@ -180,6 +226,12 @@ class TwyrBaseComponent extends TwyrBaseModule {
 			promiseResolutions.push(componentLevelAssets);
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error generating sub-component Ember assets`, err);
+			throw error;
+		})
 		.then((componentAssets) => {
 			const _ = require('lodash');
 
@@ -191,7 +243,11 @@ class TwyrBaseComponent extends TwyrBaseModule {
 			if(callback) callback(null, componentLevelAssets);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error returning Ember assets`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -200,16 +256,27 @@ class TwyrBaseComponent extends TwyrBaseModule {
 			path = require('path');
 
 		const filesystem = promises.promisifyAll(fs);
-		const loggerSrvc = this.$dependencies.LoggerService;
-
 		const modelDirPath = path.join(this.basePath, 'ember/models');
+
 		this._dummyAsync()
 		.then(() => {
 			return this._existsAsync(modelDirPath);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error checking Model folder existence`, err);
+			throw error;
+		})
 		.then((modelDirExists) => {
 			if(!modelDirExists) return [];
 			return filesystem.readdirAsync(modelDirPath);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error reading Ember Model folder`, err);
+			throw error;
 		})
 		.then((modelDirObjects) => {
 			const promiseResolutions = [];
@@ -219,6 +286,12 @@ class TwyrBaseComponent extends TwyrBaseModule {
 
 			promiseResolutions.push(modelDirObjects);
 			return promises.all(promiseResolutions);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error stat-ing Ember Model folder`, err);
+			throw error;
 		})
 		.then((results) => {
 			const modelDirObjects = results.pop(),
@@ -239,13 +312,22 @@ class TwyrBaseComponent extends TwyrBaseModule {
 
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error reading Ember Models`, err);
+			throw error;
+		})
 		.then((modelFiles) => {
 			if(callback) callback(null, modelFiles);
 			return null;
 		})
 		.catch((err) => {
-			loggerSrvc.error(`${this.name}::_getEmberModels:\nUser: ${user}\nMediaType: ${mediaType}\nError: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error returning Ember Models`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -255,12 +337,17 @@ class TwyrBaseComponent extends TwyrBaseModule {
 			path = require('path');
 
 		const filesystem = promises.promisifyAll(fs);
-		const loggerSrvc = this.$dependencies.LoggerService;
-
 		const componentDirPath = path.join(this.basePath, 'ember/components');
+
 		this._dummyAsync()
 		.then(() => {
 			return this._existsAsync(componentDirPath);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error checking Ember Component folder existence`, err);
+			throw error;
 		})
 		.then((componentDirExists) => {
 			if(!componentDirExists) return [];
@@ -274,13 +361,22 @@ class TwyrBaseComponent extends TwyrBaseModule {
 
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error reading Ember Components`, err);
+			throw error;
+		})
 		.then((componentJS) => {
 			if(callback) callback(null, componentJS);
 			return null;
 		})
 		.catch((err) => {
-			loggerSrvc.error(`${this.name}::_getEmberComponents:\nUser: ${user}\nMediaType: ${mediaType}\nError: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error returning Ember Components`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -290,12 +386,17 @@ class TwyrBaseComponent extends TwyrBaseModule {
 			path = require('path');
 
 		const filesystem = promises.promisifyAll(fs);
-		const loggerSrvc = this.$dependencies.LoggerService;
-
 		const componentHTMLDirPath = path.join(this.basePath, 'ember/componentHTMLs');
+
 		this._dummyAsync()
 		.then(() => {
 			return this._existsAsync(componentHTMLDirPath);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error checking Ember Component HTML folder existence`, err);
+			throw error;
 		})
 		.then((componentHTMLDirExists) => {
 			if(!componentHTMLDirExists) return [];
@@ -314,13 +415,22 @@ class TwyrBaseComponent extends TwyrBaseModule {
 
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error rendering Ember Component HTMLs`, err);
+			throw error;
+		})
 		.then((componentHTMLs) => {
 			if(callback) callback(null, componentHTMLs);
 			return null;
 		})
 		.catch((err) => {
-			loggerSrvc.error(`${this.name}::_getEmberComponentHTMLs:\nUser: ${user}\nMediaType: ${mediaType}\nError: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error returning Ember Component HTMLs`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -329,16 +439,27 @@ class TwyrBaseComponent extends TwyrBaseModule {
 			path = require('path');
 
 		const filesystem = promises.promisifyAll(fs);
-		const loggerSrvc = this.$dependencies.LoggerService;
-
 		const srvcDirPath = path.join(this.basePath, 'ember/services');
+
 		this._dummyAsync()
 		.then(() => {
 			return this._existsAsync(srvcDirPath);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error checking Ember Service folder existence`, err);
+			throw error;
+		})
 		.then((srvcDirExists) => {
 			if(!srvcDirExists) return [];
 			return filesystem.readdirAsync(srvcDirPath);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error reading Ember Service folder`, err);
+			throw error;
 		})
 		.then((srvcDirObjects) => {
 			const promiseResolutions = [];
@@ -348,6 +469,12 @@ class TwyrBaseComponent extends TwyrBaseModule {
 
 			promiseResolutions.push(srvcDirObjects);
 			return promises.all(promiseResolutions);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error stat-ing Ember Service folder`, err);
+			throw error;
 		})
 		.then((results) => {
 			const srvcDirObjects = results.pop(),
@@ -368,13 +495,22 @@ class TwyrBaseComponent extends TwyrBaseModule {
 
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error reading Ember Services`, err);
+			throw error;
+		})
 		.then((srvcFiles) => {
 			if(callback) callback(null, srvcFiles);
 			return null;
 		})
 		.catch((err) => {
-			loggerSrvc.error(`${this.name}::_getEmberServices:\nUser: ${user}\nMediaType: ${mediaType}\nError: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error returning Ember Services`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -383,16 +519,27 @@ class TwyrBaseComponent extends TwyrBaseModule {
 			path = require('path');
 
 		const filesystem = promises.promisifyAll(fs);
-		const loggerSrvc = this.$dependencies.LoggerService;
-
 		const helperDirPath = path.join(this.basePath, 'ember/helpers');
+
 		this._dummyAsync()
 		.then(() => {
 			return this._existsAsync(helperDirPath);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error checking Ember Helper folder existence`, err);
+			throw error;
+		})
 		.then((helperDirExists) => {
 			if(!helperDirExists) return [];
 			return filesystem.readdirAsync(helperDirPath);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error reading Ember Helper folder existence`, err);
+			throw error;
 		})
 		.then((helperDirObjects) => {
 			const promiseResolutions = [];
@@ -402,6 +549,12 @@ class TwyrBaseComponent extends TwyrBaseModule {
 
 			promiseResolutions.push(helperDirObjects);
 			return promises.all(promiseResolutions);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error stat-ing Ember Helper folder existence`, err);
+			throw error;
 		})
 		.then((results) => {
 			const helperDirObjects = results.pop(),
@@ -422,13 +575,22 @@ class TwyrBaseComponent extends TwyrBaseModule {
 
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`Error reading Ember Helpers`, err);
+			throw error;
+		})
 		.then((helperFiles) => {
 			if(callback) callback(null, helperFiles);
 			return null;
 		})
 		.catch((err) => {
-			loggerSrvc.error(`${this.name}::_getEmberHelpers:\nUser: ${user}\nMediaType: ${mediaType}\nError: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error returning Ember Helpers`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -438,7 +600,11 @@ class TwyrBaseComponent extends TwyrBaseModule {
 			if(callback) callback(null, []);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error returning Empty Ember Asset`, err);
+
+			if(callback) callback(error);
 		});
 	}
 

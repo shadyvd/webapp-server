@@ -21,7 +21,8 @@ const promises = require('bluebird');
  * @ignore
  */
 const TwyrBaseError = require('./TwyrBaseError').TwyrBaseError,
-	TwyrBaseModule = require('./TwyrBaseModule').TwyrBaseModule;
+	TwyrBaseModule = require('./TwyrBaseModule').TwyrBaseModule,
+	TwyrJSONAPIError = require('./components/TwyrComponentError').TwyrJSONAPIError;
 
 class TwyrWebApp extends TwyrBaseModule {
 	constructor(application, clusterId, workerId) {
@@ -93,13 +94,34 @@ class TwyrWebApp extends TwyrBaseModule {
 	}
 
 	_addRoutes(callback) {
-		const path = require('path');
-
 		const expressApp = this.$services.ExpressService.Interface,
 			loggerSrvc = this.$services.LoggerService.Interface;
 
 		this._dummyAsync()
 		.then(() => {
+			expressApp.use((request, response, next) => {
+				this._dummyAsync()
+				.then(() => {
+					let user = undefined;
+					if(request.user && request.user.modules) {
+						user = JSON.parse(JSON.stringify(request.user));
+						Object.keys(user.modules).forEach((moduleName) => {
+							user.modules[moduleName] = user.modules[moduleName].filter((emberComponent) => {
+								return emberComponent.media === request.device.type;
+							});
+						});
+					}
+
+					request.user = user;
+					next();
+				})
+				.catch((err) => {
+					const error = new TwyrBaseError(err.message, err);
+					next(error);
+				});
+			});
+
+			const path = require('path');
 			const mountPath = '/';
 
 			if(this.$templates) {
@@ -117,43 +139,47 @@ class TwyrWebApp extends TwyrBaseModule {
 			}
 
 			expressApp.use((request, response, next) => {
-				const cacheSrvc = this.$services.CacheService.Interface,
-					mediaType = request.device.type,
-					renderAsync = promises.promisify(response.render.bind(response));
-
-				const tenant = request.tenant;
-				let user = undefined;
-
-				if(request.user && request.user.modules) {
-					user = JSON.parse(JSON.stringify(request.user));
-					Object.keys(user.modules).forEach((moduleName) => {
-						user.modules[moduleName] = user.modules[moduleName].filter((emberComponent) => {
-							return emberComponent.media === mediaType;
-						});
-					});
-				}
-
-				cacheSrvc.getAsync(`twyr!webapp!${mediaType}!user!${user.id}!${tenant}!indexTemplate`)
+				this._dummyAsync()
+				.then(() => {
+					const cacheSrvc = this.$services.CacheService.Interface;
+					return cacheSrvc.getAsync(`twyr!webapp!${request.device.type}!user!${request.user.id}!${request.tenant}!indexTemplate`);
+				})
+				.catch((err) => {
+					const error = new TwyrBaseError(`Error retrieving cached index page for user ${request.user.id}`, err);
+					throw error;
+				})
 				.then((indexTemplate) => {
 					if(indexTemplate) return promises.all([indexTemplate, false]);
-					return promises.all([this._getClientsideAssetsAsync(tenant, user, mediaType, renderAsync), true]);
+
+					const renderAsync = promises.promisify(response.render.bind(response));
+					return promises.all([this._getClientsideAssetsAsync(request.tenant, request.user, request.device.type, renderAsync), true]);
+				})
+				.catch((err) => {
+					if(err instanceof TwyrBaseError) throw err;
+
+					const error = new TwyrBaseError(`Error generating client side assets for user ${request.user.id}`, err);
+					throw error;
 				})
 				.then((results) => {
 					response.status(200).send(results[0]);
 					return results;
 				})
 				.catch((err) => {
-					next(err);
-					throw err;
+					if(err instanceof TwyrBaseError) throw err;
+
+					const error = new TwyrBaseError(`Error sending response for user ${request.user.id}`, err);
+					throw error;
 				})
 				.then((results) => {
 					const indexTemplate = results[0],
 						toCache = results[1];
 
 					if(toCache && (process.env.NODE_ENV || 'development') === 'production') {
+						const cacheSrvc = this.$services.CacheService.Interface;
 						const cacheMulti = promises.promisifyAll(cacheSrvc.multi());
-						cacheMulti.setAsync(`twyr!webapp!${mediaType}!user!${user.id}!${tenant}!indexTemplate`, indexTemplate);
-						cacheMulti.expireAsync(`twyr!webapp!${mediaType}!user!${user.id}!${tenant}!indexTemplate`, 900);
+
+						cacheMulti.setAsync(`twyr!webapp!${request.device.type}!user!${request.user.id}!${request.tenant}!indexTemplate`, indexTemplate);
+						cacheMulti.expireAsync(`twyr!webapp!${request.device.type}!user!${request.user.id}!${request.tenant}!indexTemplate`, 900);
 
 						return cacheMulti.execAsync();
 					}
@@ -161,23 +187,47 @@ class TwyrWebApp extends TwyrBaseModule {
 					return null;
 				})
 				.catch((err) => {
-					const errMessage = (err instanceof TwyrBaseError) ? err.toString() : err.message;
-					loggerSrvc.error(`Error saving twyr!webapp!${mediaType}!user!${user.id}!${tenant}!indexTemplate to the cache:\n${errMessage}`);
+					let error = err;
+					if(!(error instanceof TwyrBaseError))
+						error = new TwyrBaseError(`Error caching twyr!webapp!${request.device.type}!user!${request.user.id}!${request.tenant}!indexTemplate`, err);
+
+					next(error);
 				});
 			});
 
 			expressApp.use((error, request, response, next) => {
-				if(request.xhr)
-					response.status(422).json({ 'error': error.message });
+				if(error instanceof TwyrJSONAPIError)
+					response.status(400).json(error.toJSON());
 				else
-					next(error);
+					response.status(400).send(error.message);
+
+				const userName = request.user ? `${request.user.first_name} ${request.user.last_name}` : `Anonymous`;
+				const logMsgMeta = {
+					'user': userName,
+					'query': JSON.parse(JSON.stringify(request.query)),
+					'params': JSON.parse(JSON.stringify(request.params)),
+					'body': JSON.parse(JSON.stringify(request.body)),
+					'error': 'None'
+				};
+
+				if(error instanceof TwyrBaseError)
+					logMsgMeta.error = error.toString();
+				else
+					logMsgMeta.error = error.stack;
+
+				loggerSrvc.error(`Error servicing Request ${request.twyrId} - ${request.method} ${request.originalUrl}:\n`, logMsgMeta);
+				next();
 			});
 
 			if(callback) callback(null, true);
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`Error adding routes`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -195,6 +245,12 @@ class TwyrWebApp extends TwyrBaseModule {
 			promiseResolutions.push(this._getEmberHelpersAsync(tenant, user, mediaType, renderer));
 
 			return promises.all(promiseResolutions);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`Error generating Ember assets`, err);
+			throw error;
 		})
 		.then((clientAssets) => {
 			const webappLevelAssets = {};
@@ -214,6 +270,12 @@ class TwyrWebApp extends TwyrBaseModule {
 			promiseResolutions.push(webappLevelAssets);
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`Error generating sub-component Ember assets`, err);
+			throw error;
+		})
 		.then((componentAssets) => {
 			const _ = require('lodash');
 
@@ -231,17 +293,33 @@ class TwyrWebApp extends TwyrBaseModule {
 
 			return promises.all([this._selectTemplateAsync(tenant, user, mediaType, renderer), webappLevelAssets]);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`Error selecting a template for rendering`, err);
+			throw error;
+		})
 		.then((results) => {
 			const selectedTemplate = results.shift(),
 				selectedTemplateConfiguration = results.shift();
 
 			return this.$templates[selectedTemplate].renderAsync(renderer, selectedTemplateConfiguration);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`Error rendering the template`, err);
+			throw error;
+		})
 		.then((renderedTemplate) => {
 			if(callback) callback(null, renderedTemplate);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`Error returning the rendered template`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -254,12 +332,22 @@ class TwyrWebApp extends TwyrBaseModule {
 			const filesystem = promises.promisifyAll(fs);
 			return filesystem.readFileAsync(path.join(this.basePath, 'ember/routeHandlers/baseRouteHandler.js'), 'utf8');
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`Error reading the baseRouteHandler`, err);
+			throw error;
+		})
 		.then((baseRoute) => {
 			if(callback) callback(null, [baseRoute]);
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`Error returning the baseRouteHandler`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -278,12 +366,22 @@ class TwyrWebApp extends TwyrBaseModule {
 
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`Error reading the base Controllers`, err);
+			throw error;
+		})
 		.then((baseControllers) => {
 			if(callback) callback(null, baseControllers);
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`Error returning the base Controllers`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -296,12 +394,22 @@ class TwyrWebApp extends TwyrBaseModule {
 			const filesystem = promises.promisifyAll(fs);
 			return filesystem.readFileAsync(path.join(this.basePath, 'ember/models/baseModel.js'), 'utf8');
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`Error reading the base Model`, err);
+			throw error;
+		})
 		.then((baseModel) => {
 			if(callback) callback(null, [baseModel]);
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`Error returning the base Model`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -314,12 +422,22 @@ class TwyrWebApp extends TwyrBaseModule {
 			const filesystem = promises.promisifyAll(fs);
 			return filesystem.readFileAsync(path.join(this.basePath, 'ember/components/baseComponent.js'), 'utf8');
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`Error reading the base Component`, err);
+			throw error;
+		})
 		.then((baseComponent) => {
 			if(callback) callback(null, [baseComponent]);
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`Error returning the base Component`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -332,12 +450,22 @@ class TwyrWebApp extends TwyrBaseModule {
 			const filesystem = promises.promisifyAll(fs);
 			return filesystem.readFileAsync(path.join(this.basePath, 'ember/componentHTMLs/baseComponent.ejs'), 'utf8');
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`Error reading the base Component HTML`, err);
+			throw error;
+		})
 		.then((baseComponentHTML) => {
 			if(callback) callback(null, [baseComponentHTML]);
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`Error returning the base Component HTML`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -350,12 +478,22 @@ class TwyrWebApp extends TwyrBaseModule {
 			const filesystem = promises.promisifyAll(fs);
 			return filesystem.readFileAsync(path.join(this.basePath, 'ember/services/baseService.js'), 'utf8');
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`Error reading the base Service`, err);
+			throw error;
+		})
 		.then((baseService) => {
 			if(callback) callback(null, [baseService]);
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`Error returning the base Service`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -368,12 +506,22 @@ class TwyrWebApp extends TwyrBaseModule {
 			const filesystem = promises.promisifyAll(fs);
 			return filesystem.readFileAsync(path.join(this.basePath, 'ember/helpers/baseHelper.js'), 'utf8');
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`Error reading the base Helper`, err);
+			throw error;
+		})
 		.then((baseHelper) => {
 			if(callback) callback(null, [baseHelper]);
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`Error returning the base Helper`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -387,6 +535,12 @@ class TwyrWebApp extends TwyrBaseModule {
 			const dbSrvc = this.$services.DatabaseService.Interface.knex;
 			return promises.all([id, dbSrvc.raw('SELECT name FROM modules WHERE id IN (SELECT module FROM server_templates WHERE id IN (SELECT server_template FROM tenants_server_templates WHERE tenant = (SELECT id FROM tenants WHERE sub_domain = ?)) AND media = ?) AND id IN (SELECT id FROM fn_get_module_descendants(?))', [tenant, mediaType, id])]);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`Error selecting default template for this tenant from the database`, err);
+			throw error;
+		})
 		.then((results) => {
 			const dbSrvc = this.$services.DatabaseService.Interface.knex,
 				id = results.shift(),
@@ -397,15 +551,25 @@ class TwyrWebApp extends TwyrBaseModule {
 
 			return moduleTemplates;
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`Error selecting default template for www tenant from the database`, err);
+			throw error;
+		})
 		.then((moduleTemplates) => {
 			if(moduleTemplates.rows.length !== 1)
-				throw new Error(`Incorrect template configuration for ${tenant}`);
+				throw new TwyrBaseError(`Incorrect template configuration for ${tenant}`);
 
 			if(callback) callback(null, moduleTemplates.rows[0].name);
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`Error returning the selected template`, err);
+
+			if(callback) callback(error);
 		});
 	}
 

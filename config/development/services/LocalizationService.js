@@ -1,4 +1,5 @@
 exports.config = {
+	"cookie": "twyr-webapp-locale",
 	"locales": [
 		"en"
 	],

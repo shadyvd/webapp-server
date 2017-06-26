@@ -20,15 +20,13 @@
  * Module dependencies, required for this module
  * @ignore
  */
-const TwyrBaseComponent = require('./../TwyrBaseComponent').TwyrBaseComponent;
+const TwyrBaseComponent = require('./../TwyrBaseComponent').TwyrBaseComponent,
+	TwyrComponentError = require('./../TwyrComponentError').TwyrComponentError,
+	TwyrJSONAPIError = require('./../TwyrComponentError').TwyrJSONAPIError;
 
 class Masterdata extends TwyrBaseComponent {
 	constructor(module) {
 		super(module);
-	}
-
-	_getClientsideAssets(tenant, user, mediaType, renderer, callback) {
-		this._getEmptyClientsideAssets(tenant, user, mediaType, renderer, callback);
 	}
 
 	_addRoutes(callback) {
@@ -39,45 +37,77 @@ class Masterdata extends TwyrBaseComponent {
 			super._addRoutes(callback);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error adding routes`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
-	_getGenders(request, response) {
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
+	_getClientsideAssets(tenant, user, mediaType, renderer, callback) {
+		this._getEmptyClientsideAssets(tenant, user, mediaType, renderer, callback);
+	}
 
+	_getGenders(request, response, next) {
 		this._dummyAsync()
 		.then(() => {
 			if(!request.user) throw new Error('This information is available only to logged-in Users');
+
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('Masterdata::genders');
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error retrieving gender masterdata`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then((genderList) => {
 			response.status(200).json(genderList);
 			return null;
 		})
 		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(400).json({ 'code': 400, 'message': err.message });
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending login response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 
-	_getContactTypes(request, response) {
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
-
+	_getContactTypes(request, response, next) {
 		this._dummyAsync()
 		.then(() => {
 			if(!request.user) throw new Error('This information is available only to logged-in Users');
+
+			const apiService = this.$dependencies.ApiService;
 			return apiService.executeAsync('Masterdata::contactTypes');
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error retrieving contact type masterdata`);
+			error.addErrorObject(err);
+
+			throw error;
 		})
 		.then((contactTypeList) => {
 			response.status(200).json(contactTypeList);
 			return null;
 		})
 		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(400).json({ 'code': 400, 'message': err.message });
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending login response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 

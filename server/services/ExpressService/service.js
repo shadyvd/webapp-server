@@ -173,26 +173,25 @@ class ExpressService extends TwyrBaseService {
 		});
 
 		const requestResponseCycleHandler = (request, response, next) => {
-			onFinished(request, (err) => {
-				const userName = request.user ? `${request.user.first_name} ${request.user.last_name}` : `Anonymous`;
-				if(err) {
-					const errMessage = err instanceof TwyrBaseError ? err.toString() : err.message;
-					loggerSrvc.error(`\nError Servicing request ${request.twyrId}:\n\nUser:${userName}\n${request.method} ${request.url}:\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${errMessage}\n`);
-				}
-				else {
-					const errMessage = 'None';
-					loggerSrvc.debug(`Servicing request ${request.twyrId}:\n\nUser:${userName}\n${request.method} ${request.originalUrl}:\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${errMessage}\n`);
-				}
+			const logMsgMeta = {
+				'user': 'Anonymous',
+				'query': JSON.parse(JSON.stringify(request.query)),
+				'params': JSON.parse(JSON.stringify(request.params)),
+				'body': JSON.parse(JSON.stringify(request.body))
+			};
+
+			onFinished(response, () => {
+				logMsgMeta.user = request.user ? `${request.user.first_name} ${request.user.last_name}` : logMsgMeta.user;
+				loggerSrvc.debug(`Serviced Request ${request.twyrId} - ${request.method} ${request.originalUrl}:`, logMsgMeta);
 			});
 
-			onFinished(response, (err) => {
-				const userName = request.user ? `${request.user.first_name} ${request.user.last_name}` : `Anonymous`;
+			onFinished(request, (err) => {
 				if(err) {
-					const errMessage = err instanceof TwyrBaseError ? err.toString() : err.message;
-					loggerSrvc.error(`\nError sending response for ${request.twyrId}:\n\nUser:${userName}\n${request.method} ${request.originalUrl}:\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${errMessage}\n`);
+					logMsgMeta.user = request.user ? `${request.user.first_name} ${request.user.last_name}` : logMsgMeta.user;
+					logMsgMeta.error = err instanceof TwyrBaseError ? err.toString() : err.message;
+
+					loggerSrvc.error(`Error servicing Request ${request.twyrId} - ${request.method} ${request.originalUrl}:`, logMsgMeta);
 				}
-//				else
-//					loggerSrvc.debug(`Sent response for ${request.twyrId}:\nURL: ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\n`);
 			});
 
 			next();

@@ -20,7 +20,9 @@ const promises = require('bluebird');
  * Module dependencies, required for this module
  * @ignore
  */
-const TwyrBaseComponent = require('./../TwyrBaseComponent').TwyrBaseComponent;
+const TwyrBaseComponent = require('./../TwyrBaseComponent').TwyrBaseComponent,
+	TwyrComponentError = require('./../TwyrComponentError').TwyrComponentError,
+	TwyrJSONAPIError = require('./../TwyrComponentError').TwyrJSONAPIError;
 
 class Applications extends TwyrBaseComponent {
 	constructor(module) {
@@ -84,66 +86,11 @@ class Applications extends TwyrBaseComponent {
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err);
-		});
-	}
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`Error adding routes`, err);
 
-	_getTenantLogo(request, response, next) {
-		const path = require('path');
-
-		const rootPath = path.dirname(require.main.filename);
-		const logoFolder = path.isAbsolute(this.$config.tenantAssetsPath) ? this.$config.tenantAssetsPath : path.join(rootPath, this.$config.tenantAssetsPath);
-
-		const defaultPath = path.join(logoFolder, 'www', 'img/logo.png'),
-			logoPath = path.join(logoFolder, request.tenant, 'img/logo.png');
-		this._dummyAsync()
-		.then(() => {
-			return promises.all([this._existsAsync(logoPath), this._existsAsync(defaultPath)]);
-		})
-		.then((exists) => {
-			const defaultLogoExists = exists.pop(),
-				tenantLogoExists = exists.pop();
-
-			if(tenantLogoExists) {
-				response.sendFile(logoPath);
-				return null;
-			}
-
-			if(defaultLogoExists) {
-				response.sendFile(defaultPath);
-				return null;
-			}
-
-			throw new Error('No Logo File found!');
-		})
-		.catch((err) => {
-			next(err);
-		});
-	}
-
-	_getApplicationsWithCategory(request, response) {
-		const apiService = this.$dependencies.ApiService;
-		response.type('application/javascript');
-
-		this._dummyAsync()
-		.then(() => {
-			if(request.user.id === 'ffffffff-ffff-4fff-ffff-ffffffffffff') throw new Error('Public visitors do not have access to application categories');
-			return apiService.executeAsync('Application::applicationWithCategory', [request.tenant, request.user, request.device.type]);
-		})
-		.then((applicationCategory) => {
-			response.status(200).json(applicationCategory);
-			return null;
-		})
-		.catch((err) => {
-//			loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${err.stack}\n`);
-			response.status(400).json({
-				'errors': [{
-					'status': 400,
-					'source': { 'pointer': '/data' },
-					'title': 'Get application category error',
-					'detail': err.stack.split('\n', 1)[0].replace('error: ', '').trim()
-				}]
-			});
+			if(callback) callback(error);
 		});
 	}
 
@@ -232,6 +179,85 @@ class Applications extends TwyrBaseComponent {
 		})
 		.catch((assetError) => {
 			if(callback) callback(assetError);
+		});
+	}
+
+	_getTenantLogo(request, response, next) {
+		const path = require('path');
+
+		const rootPath = path.dirname(require.main.filename);
+		const logoFolder = path.isAbsolute(this.$config.tenantAssetsPath) ? this.$config.tenantAssetsPath : path.join(rootPath, this.$config.tenantAssetsPath);
+
+		const defaultPath = path.join(logoFolder, 'www', 'img/logo.png'),
+			logoPath = path.join(logoFolder, request.tenant, 'img/logo.png');
+
+		this._dummyAsync()
+		.then(() => {
+			return promises.all([this._existsAsync(logoPath), this._existsAsync(defaultPath)]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error checking logo folder existence`);
+			error.addErrorObject(err);
+
+			throw error;
+		})
+		.then((exists) => {
+			const defaultLogoExists = exists.pop(),
+				tenantLogoExists = exists.pop();
+
+			if(tenantLogoExists) {
+				response.sendFile(logoPath);
+				return null;
+			}
+
+			if(defaultLogoExists) {
+				response.sendFile(defaultPath);
+				return null;
+			}
+
+			throw new Error('No Logo File found!');
+		})
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending login response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
+		});
+	}
+
+	_getApplicationsWithCategory(request, response, next) {
+		this._dummyAsync()
+		.then(() => {
+			if(request.user.id === 'ffffffff-ffff-4fff-ffff-ffffffffffff') throw new Error('Public visitors do not have access to application categories');
+
+			const apiService = this.$dependencies.ApiService;
+			return apiService.executeAsync('Application::applicationWithCategory', [request.tenant, request.user, request.device.type]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrJSONAPIError) throw err;
+
+			const error = new TwyrJSONAPIError(`Error retrieving application categories`);
+			error.addErrorObject(err);
+
+			throw error;
+		})
+		.then((applicationCategory) => {
+			response.status(200).json(applicationCategory);
+			return null;
+		})
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrJSONAPIError)) {
+				error = new TwyrJSONAPIError(`Error sending application categories response`);
+				error.addErrorObject(err);
+			}
+
+			next(error);
 		});
 	}
 
