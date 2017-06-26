@@ -267,14 +267,18 @@ class WebsocketService extends TwyrBaseService {
 
 	_websocketServerConnection(spark) {
 		const loggerSrvc = this.$dependencies.LoggerService;
-		const username = spark.request.user ? [spark.request.user.first_name, spark.request.user.last_name].join(' ') : 'Public';
-		if((process.env.NODE_ENV || 'development') === 'development') loggerSrvc.debug(`Websocket Server Connection for user: ${username}`);
+		const username = spark.request.user ? [spark.request.user.first_name, spark.request.user.last_name].join(' ') : 'Anonymous';
+		if((process.env.NODE_ENV || 'development') === 'development') loggerSrvc.debug(`Websocket Connection for user: ${username}\n`);
 
 		this.emit('websocket-connect', spark);
 		spark.write({ 'channel': 'display-status-message', 'data': `Realtime Data connection established for User: ${username}` });
 	}
 
 	_websocketServerDisconnection(spark) {
+		const loggerSrvc = this.$dependencies.LoggerService;
+		const username = spark.request.user ? [spark.request.user.first_name, spark.request.user.last_name].join(' ') : 'Anonymous';
+		if((process.env.NODE_ENV || 'development') === 'development') loggerSrvc.debug(`Websocket Disconnected for user: ${username}\n`);
+
 		this.emit('websocket-disconnect', spark);
 		spark.leaveAll();
 		spark.removeAllListeners();
