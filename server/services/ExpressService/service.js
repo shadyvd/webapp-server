@@ -121,6 +121,7 @@ class ExpressService extends TwyrBaseService {
 			poweredBy = require('connect-powered-by'),
 			serveStatic = require('serve-static'),
 			session = require('express-session'),
+			statusCodes = require('http').STATUS_CODES,
 			timeout = require('connect-timeout'),
 			uuid = require('uuid');
 
@@ -173,28 +174,114 @@ class ExpressService extends TwyrBaseService {
 		});
 
 		const requestResponseCycleHandler = (request, response, next) => {
-			const logMsgMeta = {
-				'user': 'Anonymous',
-				'query': JSON.parse(JSON.stringify(request.query)),
-				'params': JSON.parse(JSON.stringify(request.params)),
-				'body': JSON.parse(JSON.stringify(request.body))
-			};
-
-			onFinished(response, () => {
-				logMsgMeta.user = request.user ? `${request.user.first_name} ${request.user.last_name}` : logMsgMeta.user;
-				loggerSrvc.debug(`Serviced Request ${request.twyrId} - ${request.method} ${request.originalUrl}:`, logMsgMeta);
-			});
+			const auditService = this.$dependencies.AuditService;
 
 			onFinished(request, (err) => {
-				if(err) {
-					logMsgMeta.user = request.user ? `${request.user.first_name} ${request.user.last_name}` : logMsgMeta.user;
-					logMsgMeta.error = err instanceof TwyrBaseError ? err.toString() : err.message;
+				this._dummyAsync()
+				.then(() => {
+					const logMsgMeta = { 'user': undefined, 'userId': undefined };
 
-					loggerSrvc.error(`Error servicing Request ${request.twyrId} - ${request.method} ${request.originalUrl}:`, logMsgMeta);
-				}
+					logMsgMeta.userId = request.user ? `${request.user.id}` : logMsgMeta.userId;
+					logMsgMeta.user = request.user ? `${request.user.first_name} ${request.user.last_name}` : logMsgMeta.user;
+					logMsgMeta.query = JSON.parse(JSON.stringify(request.query));
+					logMsgMeta.params = JSON.parse(JSON.stringify(request.params));
+					logMsgMeta.body = JSON.parse(JSON.stringify(request.body));
+
+					if(err) {
+						logMsgMeta.error = err instanceof TwyrBaseError ? err.toString() : err.stack;
+						loggerSrvc.error(`\nError Servicing Request ${request.twyrId} - ${request.method} ${request.baseUrl}${request.path}`, logMsgMeta);
+					}
+					else
+						loggerSrvc.debug(`\nServiced Request ${request.twyrId} - ${request.method} ${request.baseUrl}${request.path}`, logMsgMeta);
+
+					const auditDetails = JSON.parse(JSON.stringify(logMsgMeta));
+					auditDetails.id = request.twyrId;
+					auditDetails.userId = auditDetails.userId || 'ffffffff-ffff-4fff-ffff-ffffffffffff';
+					auditDetails.url = `${request.method} ${request.baseUrl}${request.path}`;
+
+					return auditService.addRequestAsync(auditDetails);
+				})
+				.catch((auditEerr) => {
+					loggerSrvc.error(auditEerr);
+				});
+			});
+
+			onFinished(response, (err) => {
+				this._dummyAsync()
+				.then(() => {
+					const logMsgMeta = { 'user': undefined, 'userId': undefined };
+
+					logMsgMeta.userId = request.user ? `${request.user.id}` : logMsgMeta.userId;
+					logMsgMeta.user = request.user ? `${request.user.first_name} ${request.user.last_name}` : logMsgMeta.user;
+					logMsgMeta.response = `Status Code: ${response.statusCode} - ${response.statusMessage ? response.statusMessage : statusCodes[response.statusCode]}`;
+
+					if(err) {
+						logMsgMeta.error = err instanceof TwyrBaseError ? err.toString() : err.stack;
+						loggerSrvc.debug(`\nError Sending Response ${request.twyrId} - ${request.method} ${request.baseUrl}${request.path}`, logMsgMeta);
+					}
+					else
+						loggerSrvc.debug(`\nSent Response ${request.twyrId} - ${request.method} ${request.baseUrl}${request.path}`, logMsgMeta);
+
+					const auditDetails = JSON.parse(JSON.stringify(logMsgMeta));
+					auditDetails.id = request.twyrId;
+					auditDetails.userId = auditDetails.userId || 'ffffffff-ffff-4fff-ffff-ffffffffffff';
+					auditDetails.statusCode = response.statusCode.toString();
+					auditDetails.statusMessage = response.statusMessage ? response.statusMessage : statusCodes[response.statusCode];
+
+					delete auditDetails.response;
+					return auditService.addResponseAsync(auditDetails);
+				})
+				.catch((auditEerr) => {
+					loggerSrvc.error(auditEerr);
+				});
 			});
 
 			next();
+		};
+
+		const tenantSetter = (request, response, next) => {
+			const cacheSrvc = this.$dependencies.CacheService,
+				dbSrvc = this.$dependencies.DatabaseService.knex;
+
+			if(!request.session.passport)
+				request.session.passport = {};
+
+			if(!request.session.passport.user)
+				request.session.passport.user = 'ffffffff-ffff-4fff-ffff-ffffffffffff';
+
+			let tenantSubDomain = request.hostname.replace(this.$config.cookieParser.domain, '');
+			if(this.$config.subdomainMappings && this.$config.subdomainMappings[tenantSubDomain])
+				tenantSubDomain = this.$config.subdomainMappings[tenantSubDomain];
+
+			request.tenant = tenantSubDomain;
+
+			cacheSrvc.getAsync(`tenant!subdomain!${tenantSubDomain}!id`)
+			.then((tenantId) => {
+				if(tenantId) return [{ 'rows': [{ 'id': tenantId }] }, false];
+				return promises.all([dbSrvc.raw('SELECT id FROM tenants WHERE sub_domain = ?', [tenantSubDomain]), true]);
+			})
+			.then((results) => {
+				const shouldCache = results[1],
+					tenantId = results[0].rows[0].id;
+
+				if(!tenantId) throw new Error(`Invalid sub-domain: ${tenantSubDomain}`);
+				request.tenantId = tenantId;
+
+				if(!shouldCache)
+					return;
+
+				const cacheMulti = promises.promisifyAll(cacheSrvc.multi());
+				cacheMulti.setAsync(`twyr!webapp!tenant!subdomain!${tenantSubDomain}!id`, tenantId);
+				cacheMulti.expireAsync(`twyr!webapp!tenant!subdomain!${tenantSubDomain}!id`, 43200);
+
+				return cacheMulti.execAsync();
+			})
+			.then(() => {
+				next();
+			})
+			.catch((err) => {
+				next(err);
+			});
 		};
 
 		// Step 5: Setup Express
@@ -260,50 +347,7 @@ class ExpressService extends TwyrBaseService {
 			next();
 		})
 		.use(requestResponseCycleHandler)
-		.use((request, response, next) => {
-			const cacheSrvc = this.$dependencies.CacheService,
-				dbSrvc = this.$dependencies.DatabaseService.knex;
-
-			if(!request.session.passport)
-				request.session.passport = {};
-
-			if(!request.session.passport.user)
-				request.session.passport.user = 'ffffffff-ffff-4fff-ffff-ffffffffffff';
-
-			let tenantSubDomain = request.hostname.replace(this.$config.cookieParser.domain, '');
-			if(this.$config.subdomainMappings && this.$config.subdomainMappings[tenantSubDomain])
-				tenantSubDomain = this.$config.subdomainMappings[tenantSubDomain];
-
-			request.tenant = tenantSubDomain;
-
-			cacheSrvc.getAsync(`tenant!subdomain!${tenantSubDomain}!id`)
-			.then((tenantId) => {
-				if(tenantId) return [{ 'rows': [{ 'id': tenantId }] }, false];
-				return promises.all([dbSrvc.raw('SELECT id FROM tenants WHERE sub_domain = ?', [tenantSubDomain]), true]);
-			})
-			.then((results) => {
-				const shouldCache = results[1],
-					tenantId = results[0].rows[0].id;
-
-				if(!tenantId) throw new Error(`Invalid sub-domain: ${tenantSubDomain}`);
-				request.tenantId = tenantId;
-
-				if(!shouldCache)
-					return;
-
-				const cacheMulti = promises.promisifyAll(cacheSrvc.multi());
-				cacheMulti.setAsync(`twyr!webapp!tenant!subdomain!${tenantSubDomain}!id`, tenantId);
-				cacheMulti.expireAsync(`twyr!webapp!tenant!subdomain!${tenantSubDomain}!id`, 43200);
-
-				return cacheMulti.execAsync();
-			})
-			.then(() => {
-				next();
-			})
-			.catch((err) => {
-				next(err);
-			});
-		})
+		.use(tenantSetter)
 		.use(this.$dependencies.AuthService.initialize())
 		.use(this.$dependencies.AuthService.session());
 
@@ -380,7 +424,7 @@ class ExpressService extends TwyrBaseService {
 
 	get Interface() { return this.$express; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['AuthService', 'CacheService', 'ConfigurationService', 'DatabaseService', 'LocalizationService', 'LoggerService']; }
+	get dependencies() { return ['AuditService', 'AuthService', 'CacheService', 'ConfigurationService', 'DatabaseService', 'LocalizationService', 'LoggerService']; }
 }
 
 exports.service = ExpressService;

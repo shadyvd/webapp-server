@@ -68,6 +68,7 @@
 		"jsonapi-serializer": "*",
 		"knex": "*",
 		"lodash": "*",
+		"memory-cache": "^0.2.0",
 		"method-override": "*",
 		"moment": "*",
 		"morgan": "*",

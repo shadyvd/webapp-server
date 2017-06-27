@@ -93,7 +93,8 @@ class LoggerService extends TwyrBaseService {
 	}
 
 	_setupWinston(callback) {
-		const path = require('path'),
+		const inflection = require('inflection'),
+			path = require('path'),
 			winston = require('winston');
 
 		const config = this.$config,
@@ -123,23 +124,39 @@ class LoggerService extends TwyrBaseService {
 		this.$winston.configure({
 			'transports': transports,
 			'rewriters': [(level, msg, meta) => {
+				if(!meta) return undefined;
+				if(!Object.keys(meta).length) return undefined;
+
 				Object.keys(meta).forEach((key) => {
+					if(!meta[key]) {
+						delete meta[key];
+						return;
+					}
 					const dangerousKeys = Object.keys(meta[key]).filter((metaKeyKey) => {
-						return (metaKeyKey.toLowerCase().indexOf('password') >= 0) || (metaKeyKey.toLowerCase().indexOf('image') >= 0);
+						return (metaKeyKey.toLowerCase().indexOf('password') >= 0) || (metaKeyKey.toLowerCase().indexOf('image') >= 0) || (metaKeyKey.toLowerCase().indexOf('random') >= 0) || (metaKeyKey === '_');
 					});
 
 					dangerousKeys.forEach((dangerousKey) => {
 						delete meta[key][dangerousKey];
 					});
+
+					if(!Object.keys(meta[key]).length)
+						delete meta[key];
 				});
 
-				return `${JSON.stringify(meta, undefined, '\t')}\n\n`;
+				if(!Object.keys(meta).length) return undefined;
+				if(Object.keys(meta).length === 1) return `::${inflection.capitalize(Object.keys(meta)[0])}: ${meta[Object.keys(meta)[0]]}\n`;
+				return `: ${JSON.stringify(meta, undefined, '\t')}\n\n`;
 			}]
+		});
+
+		// Console log any errors emitted by Winston itself
+		this.$winston.on('error', (err) => {
+			console.error(`Winston Logger Error:\n${err.stack}`);
 		});
 
 		// Ensure the logger isn't crashing the Server :-)
 		this.$winston.exitOnError = false;
-		this.$winston.emitErrs = false;
 
 		// The first log of this logger instance...
 		if((process.env.NODE_ENV || 'development') === 'development')

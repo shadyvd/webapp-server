@@ -20,7 +20,8 @@ const promises = require('bluebird');
  * Module dependencies, required for this module
  * @ignore
  */
-const TwyrBaseService = require('./../TwyrBaseService').TwyrBaseService;
+const TwyrBaseError = require('./../../TwyrBaseError').TwyrBaseError,
+	TwyrBaseService = require('./../TwyrBaseService').TwyrBaseService;
 
 class WebsocketService extends TwyrBaseService {
 	constructor(module) {
@@ -120,7 +121,10 @@ class WebsocketService extends TwyrBaseService {
 
 		const cookieParser = require('cookie-parser'),
 			device = require('express-device'),
+			onFinished = require('on-finished'),
 			session = require('express-session'),
+			statusCodes = require('http').STATUS_CODES,
+			url = require('url'),
 			uuid = require('uuid');
 
 		const SessionStore = require(`connect-${this.$config.session.store.media}`)(session);
@@ -146,16 +150,53 @@ class WebsocketService extends TwyrBaseService {
 			}
 		});
 
-		// Step 1: Setup the realtime streaming server
-		const thisConfig = JSON.parse(JSON.stringify(this.$config.primus));
-		this.$websocketServer = new PrimusServer(this.$dependencies.ExpressService.$server, thisConfig);
+		const enableCheck = (request, response, next) => {
+			request.twyrId = uuid.v4().toString();
 
-		// Step 2: Put in the authorization hook
-		this.$websocketServer.use('cookieParser', _cookieParser, undefined, 0);
-		this.$websocketServer.use('session', _session, undefined, 1);
-		this.$websocketServer.use('tenantSetter', (request, response, next) => {
+			if(!this.$enabled) {
+				response.status(500).redirect('/error');
+				return;
+			}
+
+			next();
+		};
+
+		const requestResponseCycleHandler = (request, response, next) => {
+			onFinished(request, (err) => {
+				const logMsgMeta = { 'user': 'Anonymous' };
+				logMsgMeta.userId = request.user ? `${request.user.id}` : logMsgMeta.userId;
+				logMsgMeta.user = request.user ? `${request.user.first_name} ${request.user.last_name}` : logMsgMeta.user;
+
+				if(err) {
+					logMsgMeta.error = err instanceof TwyrBaseError ? err.toString() : err.stack;
+					loggerSrvc.error(`\nError Servicing Request ${request.twyrId} - ${request.method} ${request.url}`, logMsgMeta);
+				}
+				else
+					loggerSrvc.debug(`\nServiced Request ${request.twyrId} - ${request.method} ${request.url}`, logMsgMeta);
+			});
+
+			onFinished(response, (err) => {
+				const logMsgMeta = { 'user': 'Anonymous' };
+
+				logMsgMeta.userId = request.user ? `${request.user.id}` : logMsgMeta.userId;
+				logMsgMeta.user = request.user ? `${request.user.first_name} ${request.user.last_name}` : logMsgMeta.user;
+				logMsgMeta.response = `Status Code: ${response.statusCode} - ${response.statusMessage ? response.statusMessage : statusCodes[response.statusCode]}`;
+
+				if(err) {
+					logMsgMeta.error = err instanceof TwyrBaseError ? err.toString() : err.stack;
+					loggerSrvc.debug(`\nError Sending Response ${request.twyrId} - ${request.method} ${request.url}`, logMsgMeta);
+				}
+				else
+					loggerSrvc.debug(`\nSent Response ${request.twyrId} - ${request.method} ${request.url}`, logMsgMeta);
+			});
+
+			next();
+		};
+
+		const tenantSetter = (request, response, next) => {
 			const cacheSrvc = this.$dependencies.CacheService,
-				dbSrvc = this.$dependencies.DatabaseService.knex;
+				dbSrvc = this.$dependencies.DatabaseService.knex,
+				urlParts = url.parse(request.url);
 
 			if(!request.session.passport)
 				request.session.passport = {};
@@ -163,7 +204,7 @@ class WebsocketService extends TwyrBaseService {
 			if(!request.session.passport.user)
 				request.session.passport.user = 'ffffffff-ffff-4fff-ffff-ffffffffffff';
 
-			let tenantSubDomain = (request.hostname || 'www.twyr.com').replace(this.$config.cookieParser.domain, '');
+			let tenantSubDomain = (urlParts.hostname || `www${this.$config.cookieParser.domain}`).replace(this.$config.cookieParser.domain, '');
 			if(this.$config.subdomainMappings && this.$config.subdomainMappings[tenantSubDomain])
 				tenantSubDomain = this.$config.subdomainMappings[tenantSubDomain];
 
@@ -191,40 +232,43 @@ class WebsocketService extends TwyrBaseService {
 				return cacheMulti.execAsync();
 			})
 			.then(() => {
-				const requestDomain = require('domain').create();
-				requestDomain.add(request);
-				requestDomain.add(response);
-
-				requestDomain.on('error', (error) => {
-					loggerSrvc.error(`Error Servicing request ${request.method} "${request.originalUrl}":\nQuery: ${JSON.stringify(request.query, undefined, '\t')}\nParams: ${JSON.stringify(request.params, undefined, '\t')}\nBody: ${JSON.stringify(request.body, undefined, '\t')}\nError: ${error.stack}`);
-					response.status(500).redirect('/error');
-				});
-
 				next();
 			})
 			.catch((err) => {
 				next(err);
 			});
-		}, undefined, 2);
+		};
 
+		// Step 1: Setup the realtime streaming server
+		const thisConfig = JSON.parse(JSON.stringify(this.$config.primus));
+		this.$websocketServer = new PrimusServer(this.$dependencies.ExpressService.$server, thisConfig);
+
+		// Step 2: Put in the middlewares we need
+		this.$websocketServer.use('enableCheck', enableCheck, undefined, 0);
+		this.$websocketServer.use('cookieParser', _cookieParser, undefined, 1);
+		this.$websocketServer.use('session', _session, undefined, 2);
 		this.$websocketServer.use('device', device.capture(), undefined, 3);
-		this.$websocketServer.use('passportInit', this.$dependencies.AuthService.initialize(), undefined, 4);
-		this.$websocketServer.use('passportSession', this.$dependencies.AuthService.session(), undefined, 5);
+		this.$websocketServer.use('autologger', requestResponseCycleHandler, undefined, 4);
+		this.$websocketServer.use('tenantSetter', tenantSetter, undefined, 5);
+		this.$websocketServer.use('passportInit', this.$dependencies.AuthService.initialize(), undefined, 6);
+		this.$websocketServer.use('passportSession', this.$dependencies.AuthService.session(), undefined, 7);
+
+		// Step 3: Authorization hook
 		this.$websocketServer.authorize(this._authorizeWebsocketConnection.bind(this));
 
-		// Step 3: Primus extensions...
+		// Step 4: Primus extensions...
 		this.$websocketServer.plugin('rooms', PrimusRooms);
 
-		// Step 4: Attach the event handlers...
+		// Step 5: Attach the event handlers...
 		this.$websocketServer.on('initialised', this._websocketServerInitialised.bind(this));
 		this.$websocketServer.on('log', this._websocketServerLog.bind(this));
 		this.$websocketServer.on('error', this._websocketServerError.bind(this));
 
-		// Step 5: Log connection / disconnection events
+		// Step 6: Log connection / disconnection events
 		this.$websocketServer.on('connection', this._websocketServerConnection.bind(this));
 		this.$websocketServer.on('disconnection', this._websocketServerDisconnection.bind(this));
 
-		// Step 6: Save the current config client file to the correct location
+		// And we're done...
 		if(callback) callback(null, true);
 		return null;
 	}
@@ -250,17 +294,17 @@ class WebsocketService extends TwyrBaseService {
 
 	_websocketServerInitialised(transformer, parser, options) {
 		const loggerSrvc = this.$dependencies.LoggerService;
-		if((process.env.NODE_ENV || 'development') === 'development') loggerSrvc.debug(`Websocket Server has been initialised with options: ${JSON.stringify(options, undefined, '\t')}`);
+		if((process.env.NODE_ENV || 'development') === 'development') loggerSrvc.debug(`Websocket Server has been initialised with options`, JSON.stringify(options, undefined, '\t'));
 	}
 
 	_websocketServerLog() {
 		const loggerSrvc = this.$dependencies.LoggerService;
-		if((process.env.NODE_ENV || 'development') === 'development') loggerSrvc.debug(`Websocket Server Log: ${JSON.stringify(arguments, undefined, '\t')}`);
+		if((process.env.NODE_ENV || 'development') === 'development') loggerSrvc.debug(`Websocket Server Log`, JSON.stringify(arguments, undefined, '\t'));
 	}
 
 	_websocketServerError() {
 		const loggerSrvc = this.$dependencies.LoggerService;
-		loggerSrvc.error(`Websocket Server Error: ${JSON.stringify(arguments, undefined, '\t')}`);
+		loggerSrvc.error(`Websocket Server Error`, JSON.stringify(arguments, undefined, '\t'));
 
 		this.emit('websocket-error', arguments);
 	}
@@ -268,7 +312,7 @@ class WebsocketService extends TwyrBaseService {
 	_websocketServerConnection(spark) {
 		const loggerSrvc = this.$dependencies.LoggerService;
 		const username = spark.request.user ? [spark.request.user.first_name, spark.request.user.last_name].join(' ') : 'Anonymous';
-		if((process.env.NODE_ENV || 'development') === 'development') loggerSrvc.debug(`Websocket Connection for user: ${username}\n`);
+		if((process.env.NODE_ENV || 'development') === 'development') loggerSrvc.debug(`Websocket Connection for user`, username);
 
 		this.emit('websocket-connect', spark);
 		spark.write({ 'channel': 'display-status-message', 'data': `Realtime Data connection established for User: ${username}` });
@@ -277,7 +321,7 @@ class WebsocketService extends TwyrBaseService {
 	_websocketServerDisconnection(spark) {
 		const loggerSrvc = this.$dependencies.LoggerService;
 		const username = spark.request.user ? [spark.request.user.first_name, spark.request.user.last_name].join(' ') : 'Anonymous';
-		if((process.env.NODE_ENV || 'development') === 'development') loggerSrvc.debug(`Websocket Disconnected for user: ${username}\n`);
+		if((process.env.NODE_ENV || 'development') === 'development') loggerSrvc.debug(`Websocket Disconnected for user`, username);
 
 		this.emit('websocket-disconnect', spark);
 		spark.leaveAll();
