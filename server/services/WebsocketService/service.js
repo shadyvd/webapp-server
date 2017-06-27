@@ -150,49 +150,6 @@ class WebsocketService extends TwyrBaseService {
 			}
 		});
 
-		const enableCheck = (request, response, next) => {
-			request.twyrId = uuid.v4().toString();
-
-			if(!this.$enabled) {
-				response.status(500).redirect('/error');
-				return;
-			}
-
-			next();
-		};
-
-		const requestResponseCycleHandler = (request, response, next) => {
-			onFinished(request, (err) => {
-				const logMsgMeta = { 'user': 'Anonymous' };
-				logMsgMeta.userId = request.user ? `${request.user.id}` : logMsgMeta.userId;
-				logMsgMeta.user = request.user ? `${request.user.first_name} ${request.user.last_name}` : logMsgMeta.user;
-
-				if(err) {
-					logMsgMeta.error = err instanceof TwyrBaseError ? err.toString() : err.stack;
-					loggerSrvc.error(`\nError Servicing Request ${request.twyrId} - ${request.method} ${request.url}`, logMsgMeta);
-				}
-				else
-					loggerSrvc.debug(`\nServiced Request ${request.twyrId} - ${request.method} ${request.url}`, logMsgMeta);
-			});
-
-			onFinished(response, (err) => {
-				const logMsgMeta = { 'user': 'Anonymous' };
-
-				logMsgMeta.userId = request.user ? `${request.user.id}` : logMsgMeta.userId;
-				logMsgMeta.user = request.user ? `${request.user.first_name} ${request.user.last_name}` : logMsgMeta.user;
-				logMsgMeta.response = `Status Code: ${response.statusCode} - ${response.statusMessage ? response.statusMessage : statusCodes[response.statusCode]}`;
-
-				if(err) {
-					logMsgMeta.error = err instanceof TwyrBaseError ? err.toString() : err.stack;
-					loggerSrvc.debug(`\nError Sending Response ${request.twyrId} - ${request.method} ${request.url}`, logMsgMeta);
-				}
-				else
-					loggerSrvc.debug(`\nSent Response ${request.twyrId} - ${request.method} ${request.url}`, logMsgMeta);
-			});
-
-			next();
-		};
-
 		const tenantSetter = (request, response, next) => {
 			const cacheSrvc = this.$dependencies.CacheService,
 				dbSrvc = this.$dependencies.DatabaseService.knex,
@@ -244,14 +201,12 @@ class WebsocketService extends TwyrBaseService {
 		this.$websocketServer = new PrimusServer(this.$dependencies.ExpressService.$server, thisConfig);
 
 		// Step 2: Put in the middlewares we need
-		this.$websocketServer.use('enableCheck', enableCheck, undefined, 0);
-		this.$websocketServer.use('cookieParser', _cookieParser, undefined, 1);
-		this.$websocketServer.use('session', _session, undefined, 2);
-		this.$websocketServer.use('device', device.capture(), undefined, 3);
-		this.$websocketServer.use('autologger', requestResponseCycleHandler, undefined, 4);
-		this.$websocketServer.use('tenantSetter', tenantSetter, undefined, 5);
-		this.$websocketServer.use('passportInit', this.$dependencies.AuthService.initialize(), undefined, 6);
-		this.$websocketServer.use('passportSession', this.$dependencies.AuthService.session(), undefined, 7);
+		this.$websocketServer.use('cookieParser', _cookieParser, undefined, 0);
+		this.$websocketServer.use('session', _session, undefined, 1);
+		this.$websocketServer.use('device', device.capture(), undefined, 2);
+		this.$websocketServer.use('tenantSetter', tenantSetter, undefined, 3);
+		this.$websocketServer.use('passportInit', this.$dependencies.AuthService.initialize(), undefined, 4);
+		this.$websocketServer.use('passportSession', this.$dependencies.AuthService.session(), undefined, 5);
 
 		// Step 3: Authorization hook
 		this.$websocketServer.authorize(this._authorizeWebsocketConnection.bind(this));
@@ -330,7 +285,7 @@ class WebsocketService extends TwyrBaseService {
 
 	get Interface() { return this.$websocketServer; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['AuthService', 'ConfigurationService', 'CacheService', 'DatabaseService', 'ExpressService', 'LoggerService']; }
+	get dependencies() { return ['AuditService', 'AuthService', 'ConfigurationService', 'CacheService', 'DatabaseService', 'ExpressService', 'LoggerService']; }
 }
 
 exports.service = WebsocketService;

@@ -56,7 +56,7 @@ class PubsubService extends TwyrBaseService {
 
 			if(typeof options === 'function' && !callback) {
 				callback = options;
-				options = null;
+				options = undefined;
 			}
 
 			Object.keys(this.$listeners).forEach((pubsubStrategy) => {

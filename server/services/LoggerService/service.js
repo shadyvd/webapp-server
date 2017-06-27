@@ -93,8 +93,7 @@ class LoggerService extends TwyrBaseService {
 	}
 
 	_setupWinston(callback) {
-		const inflection = require('inflection'),
-			path = require('path'),
+		const path = require('path'),
 			winston = require('winston');
 
 		const config = this.$config,
@@ -145,8 +144,7 @@ class LoggerService extends TwyrBaseService {
 				});
 
 				if(!Object.keys(meta).length) return undefined;
-				if(Object.keys(meta).length === 1) return `::${inflection.capitalize(Object.keys(meta)[0])}: ${meta[Object.keys(meta)[0]]}\n`;
-				return `: ${JSON.stringify(meta, undefined, '\t')}\n\n`;
+				return JSON.stringify(meta, undefined, '\t');
 			}]
 		});
 

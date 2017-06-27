@@ -7,6 +7,8 @@ exports.config = ({
 		"db": 12,
 		"options": {
 			"detect_buffers": true
-		}
+		},
+		"return_buffers": true,
+		"json": false
 	}
 });

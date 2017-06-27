@@ -196,27 +196,13 @@ class TwyrWebApp extends TwyrBaseModule {
 			});
 
 			expressApp.use((error, request, response, next) => {
+				if(response.finished) return;
+				if(response.headersSent) next(error);
+
 				if(error instanceof TwyrJSONAPIError)
-					response.status(400).json(error.toJSON());
+					response.status(422).json(error.toJSON());
 				else
 					response.status(400).send(error.message);
-
-				const userName = request.user ? `${request.user.first_name} ${request.user.last_name}` : `Anonymous`;
-				const logMsgMeta = {
-					'user': userName,
-					'query': JSON.parse(JSON.stringify(request.query)),
-					'params': JSON.parse(JSON.stringify(request.params)),
-					'body': JSON.parse(JSON.stringify(request.body)),
-					'error': 'None'
-				};
-
-				if(error instanceof TwyrBaseError)
-					logMsgMeta.error = error.toString();
-				else
-					logMsgMeta.error = error.stack;
-
-				loggerSrvc.error(`Error servicing Request ${request.twyrId} - ${request.method} ${request.originalUrl}:\n`, logMsgMeta);
-				next();
 			});
 
 			if(callback) callback(null, true);
