@@ -39,6 +39,8 @@ class AuditService extends TwyrBaseService {
 		})
 		.then((status) => {
 			if(callback) callback(null, status[0]);
+
+//			return this.$dependencies.PubsubService.subscribeAsync('*', 'TWYR_AUDIT', this._logPublishedMessages.bind(this));
 			return null;
 		})
 		.catch((err) => {
@@ -149,11 +151,11 @@ class AuditService extends TwyrBaseService {
 				const deepmerge = require('deepmerge');
 				hasResponse = deepmerge(hasResponse, requestDetails);
 
-				this.$auditCache.put(requestDetails.id, hasResponse, 600000, this._processTimedoutRequests.bind(this));
+				this.$auditCache.put(requestDetails.id, hasResponse, 10000, this._processTimedoutRequests.bind(this));
 				return this._publishAuditAsync(requestDetails.id);
 			}
 			else {
-				this.$auditCache.put(requestDetails.id, requestDetails, 600000, this._processTimedoutRequests.bind(this));
+				this.$auditCache.put(requestDetails.id, requestDetails, 10000, this._processTimedoutRequests.bind(this));
 				return null;
 			}
 		})
@@ -195,11 +197,11 @@ class AuditService extends TwyrBaseService {
 				const deepmerge = require('deepmerge');
 				hasRequest = deepmerge(hasRequest, responseDetails);
 
-				this.$auditCache.put(responseDetails.id, hasRequest, 600000, this._processTimedoutRequests.bind(this));
+				this.$auditCache.put(responseDetails.id, hasRequest, 10000, this._processTimedoutRequests.bind(this));
 				return this._publishAuditAsync(responseDetails.id);
 			}
 			else {
-				this.$auditCache.put(responseDetails.id, responseDetails, 600000, this._processTimedoutRequests.bind(this));
+				this.$auditCache.put(responseDetails.id, responseDetails, 10000, this._processTimedoutRequests.bind(this));
 				return null;
 			}
 		})
@@ -215,24 +217,77 @@ class AuditService extends TwyrBaseService {
 		});
 	}
 
+	_addResponsePayload(payloadDetails, callback) {
+		if(!this.$auditCache) {
+			const payloadDetailsError = new TwyrServiceError('Audit capture not available');
+
+			this.$dependencies.LoggerService.error(payloadDetailsError.toString());
+			if(callback) callback(payloadDetailsError);
+
+			return;
+		}
+
+		if(!payloadDetails.id) {
+			const payloadDetailsError = new TwyrServiceError('Incorrectly formed payload details');
+
+			this.$dependencies.LoggerService.error(payloadDetailsError.toString());
+			if(callback) callback(payloadDetailsError);
+
+			return;
+		}
+
+		this._dummyAsync()
+		.then(() => {
+			let hasRequest = this.$auditCache.get(payloadDetails.id);
+			if(hasRequest) {
+				const deepmerge = require('deepmerge');
+				hasRequest = deepmerge(hasRequest, payloadDetails);
+
+				this.$auditCache.put(payloadDetails.id, hasRequest, 10000, this._processTimedoutRequests.bind(this));
+			}
+			else
+				this.$auditCache.put(payloadDetails.id, payloadDetails, 10000, this._processTimedoutRequests.bind(this));
+
+			if(callback) callback(null, true);
+			return null;
+		})
+		.catch((err) => {
+			const payloadDetailsError = new TwyrServiceError('Payload capture error', err);
+
+			this.$dependencies.LoggerService.error(payloadDetailsError.toString());
+			if(callback) callback(payloadDetailsError);
+		});
+	}
+
 	_publishAudit(id, callback) {
 		if(!this.$auditCache) {
 			if(callback) callback(null, false);
 			return;
 		}
 
-		const auditDetails = this.$auditCache.get(id);
-		if(!auditDetails) {
-			if(callback) callback(null, false);
-			return;
-		}
-
 		this._dummyAsync()
 		.then(() => {
-			this.$dependencies.LoggerService.info(`${this.name} LOG (Will use Pubsub in the future)`, auditDetails);
-			this.$auditCache.del(id);
+			return this._cleanBeforePublishAsync(id);
+		})
+		.then((auditDetails) => {
+			if(auditDetails.published) return;
 
+			auditDetails.published = true;
+			this.$auditCache.put(id, auditDetails);
+
+			if(auditDetails.error) {
+				this.$dependencies.LoggerService.error(`Error Servicing Request ${auditDetails.id} - ${auditDetails.url}:`, auditDetails);
+				return this.$dependencies.PubsubService.publishAsync('*', 'TWYR_AUDIT', JSON.stringify(auditDetails));
+			}
+			else {
+				this.$dependencies.LoggerService.debug(`Serviced Request ${auditDetails.id} - ${auditDetails.url}:`, auditDetails);
+				return this.$dependencies.PubsubService.publishAsync('*', 'TWYR_AUDIT', JSON.stringify(auditDetails));
+			}
+		})
+		.then(() => {
+			this.$auditCache.del(id);
 			if(callback) callback(null, true);
+
 			return null;
 		})
 		.catch((err) => {
@@ -243,22 +298,78 @@ class AuditService extends TwyrBaseService {
 	_processTimedoutRequests(key, value) {
 		this._dummyAsync()
 		.then(() => {
-			value.error = 'Timed Out';
+			return this._cleanBeforePublishAsync(key, value);
+		})
+		.then((auditDetails) => {
+			auditDetails.error = 'Timed Out';
+			this.$dependencies.LoggerService.error(`Error Servicing Request ${auditDetails.id} - ${auditDetails.url}:`, auditDetails);
 
-			this.$dependencies.LoggerService.info(`${this.name} LOG (Will use Pubsub in the future)`, value);
+			return this.$dependencies.PubsubService.publishAsync('*', 'TWYR_AUDIT', JSON.stringify(auditDetails));
+		})
+		.then(() => {
 			this.$auditCache.del(key);
-
 			return null;
 		})
 		.catch((err) => {
-			this.$dependencies.LoggerService.error(`${this.name} LOG (Will use Pubsub in the future)`, err);
+			this.$dependencies.LoggerService.error(`${this.name} process timedout request error:`, err.stack);
 		});
+	}
+
+	_cleanBeforePublish(id, value, callback) {
+		if(value && typeof value === 'function' && !callback) {
+			callback = value;
+			value = undefined;
+		}
+
+		const auditDetails = value || this.$auditCache.get(id);
+		if(!auditDetails) {
+			if(callback) callback(null, false);
+			return;
+		}
+
+		if(!Object.keys(auditDetails).length) {
+			if(callback) callback(null, false);
+			return;
+		}
+
+		Object.keys(auditDetails).forEach((key) => {
+			if(!auditDetails[key]) {
+				delete auditDetails[key];
+				return;
+			}
+			const dangerousKeys = Object.keys(auditDetails[key]).filter((auditDetailsKeyKey) => {
+				return (auditDetailsKeyKey.toLowerCase().indexOf('password') >= 0) || (auditDetailsKeyKey.toLowerCase().indexOf('image') >= 0) || (auditDetailsKeyKey.toLowerCase().indexOf('random') >= 0) || (auditDetailsKeyKey === '_');
+			});
+
+			dangerousKeys.forEach((dangerousKey) => {
+				delete auditDetails[key][dangerousKey];
+			});
+
+			if(!Object.keys(auditDetails[key]).length)
+				delete auditDetails[key];
+		});
+
+		if(auditDetails.params) {
+			Object.keys(auditDetails.params).forEach((key) => {
+				auditDetails.url = auditDetails.url.replace(`/${auditDetails.params[key]}`, '');
+			});
+		}
+
+		if(callback) callback(null, auditDetails);
+	}
+
+	_logPublishedMessages(topic, auditMessage) {
+		this.$dependencies.LoggerService.info('Sent Audit Message:', JSON.parse(auditMessage));
 	}
 
 	get Interface() {
 		return {
+			'addRequest': this._addRequest.bind(this),
 			'addRequestAsync': this._addRequestAsync.bind(this),
-			'addResponseAsync': this._addResponseAsync.bind(this)
+			'addResponse': this._addResponse.bind(this),
+			'addResponseAsync': this._addResponseAsync.bind(this),
+			'addResponsePayload': this._addResponsePayload.bind(this),
+			'addResponsePayloadAsync': this._addResponsePayloadAsync.bind(this)
 		};
 	}
 

@@ -173,33 +173,52 @@ class ExpressService extends TwyrBaseService {
 			}
 		});
 
+		const setupRequestResponseForAudit = (request, response, next) => {
+			request.twyrId = uuid.v4().toString();
+
+			const realSend = response.send.bind(response);
+			response.send = (body) => {
+				this._dummyAsync()
+				.then(() => {
+					if(response.finished) return;
+
+					const auditService = this.$dependencies.AuditService;
+					const auditBody = { 'id': request.twyrId, 'payload': request.xhr ? JSON.parse(body) : { 'data': 'Non-XHR Payload' } };
+					return auditService.addResponsePayloadAsync(auditBody);
+				})
+				.then(() => {
+					realSend(body);
+				})
+				.catch((auditEerr) => {
+					loggerSrvc.error(auditEerr);
+				});
+			};
+
+			if(!this.$enabled) {
+				response.status(500).redirect('/error');
+				return;
+			}
+
+			next();
+		};
+
 		const requestResponseCycleHandler = (request, response, next) => {
-			const auditService = this.$dependencies.AuditService;
+			const auditService = this.$dependencies.AuditService,
+				logMsgMeta = { 'user': undefined, 'userId': undefined };
 
 			onFinished(request, (err) => {
 				this._dummyAsync()
 				.then(() => {
-					const logMsgMeta = { 'user': undefined, 'userId': undefined };
-
-					logMsgMeta.userId = request.user ? `${request.user.id}` : logMsgMeta.userId;
+					logMsgMeta.id = request.twyrId;
+					logMsgMeta.url = `${request.method} ${request.baseUrl}${request.path}`;
+					logMsgMeta.userId = request.user ? `${request.user.id}` : logMsgMeta.userId || 'ffffffff-ffff-4fff-ffff-ffffffffffff';
 					logMsgMeta.user = request.user ? `${request.user.first_name} ${request.user.last_name}` : logMsgMeta.user;
 					logMsgMeta.query = JSON.parse(JSON.stringify(request.query));
 					logMsgMeta.params = JSON.parse(JSON.stringify(request.params));
 					logMsgMeta.body = JSON.parse(JSON.stringify(request.body));
 
-					if(err) {
-						logMsgMeta.error = err instanceof TwyrBaseError ? err.toString() : err.stack;
-						loggerSrvc.error(`\nError Servicing Request ${request.twyrId} - ${request.method} ${request.baseUrl}${request.path}`, logMsgMeta);
-					}
-					else
-						loggerSrvc.debug(`\nServiced Request ${request.twyrId} - ${request.method} ${request.baseUrl}${request.path}`, logMsgMeta);
-
-					const auditDetails = JSON.parse(JSON.stringify(logMsgMeta));
-					auditDetails.id = request.twyrId;
-					auditDetails.userId = auditDetails.userId || 'ffffffff-ffff-4fff-ffff-ffffffffffff';
-					auditDetails.url = `${request.method} ${request.baseUrl}${request.path}`;
-
-					return auditService.addRequestAsync(auditDetails);
+					if(err) logMsgMeta.error = err instanceof TwyrBaseError ? err.toString() : err.stack;
+					return auditService.addRequestAsync(logMsgMeta);
 				})
 				.catch((auditEerr) => {
 					loggerSrvc.error(auditEerr);
@@ -209,27 +228,21 @@ class ExpressService extends TwyrBaseService {
 			onFinished(response, (err) => {
 				this._dummyAsync()
 				.then(() => {
-					const logMsgMeta = { 'user': undefined, 'userId': undefined };
-
-					logMsgMeta.userId = request.user ? `${request.user.id}` : logMsgMeta.userId;
+					logMsgMeta.id = request.twyrId;
+					logMsgMeta.url = `${request.method} ${request.baseUrl}${request.path}`;
+					logMsgMeta.userId = request.user ? `${request.user.id}` : logMsgMeta.userId || 'ffffffff-ffff-4fff-ffff-ffffffffffff';
 					logMsgMeta.user = request.user ? `${request.user.first_name} ${request.user.last_name}` : logMsgMeta.user;
-					logMsgMeta.response = `Status Code: ${response.statusCode} - ${response.statusMessage ? response.statusMessage : statusCodes[response.statusCode]}`;
+					logMsgMeta.query = JSON.parse(JSON.stringify(request.query));
+					logMsgMeta.params = JSON.parse(JSON.stringify(request.params));
+					logMsgMeta.body = JSON.parse(JSON.stringify(request.body));
 
-					if(err) {
-						logMsgMeta.error = err instanceof TwyrBaseError ? err.toString() : err.stack;
-						loggerSrvc.debug(`\nError Sending Response ${request.twyrId} - ${request.method} ${request.baseUrl}${request.path}`, logMsgMeta);
-					}
-					else
-						loggerSrvc.debug(`\nSent Response ${request.twyrId} - ${request.method} ${request.baseUrl}${request.path}`, logMsgMeta);
+					logMsgMeta.statusCode = response.statusCode.toString();
+					logMsgMeta.statusMessage = response.statusMessage ? response.statusMessage : statusCodes[response.statusCode];
 
-					const auditDetails = JSON.parse(JSON.stringify(logMsgMeta));
-					auditDetails.id = request.twyrId;
-					auditDetails.userId = auditDetails.userId || 'ffffffff-ffff-4fff-ffff-ffffffffffff';
-					auditDetails.statusCode = response.statusCode.toString();
-					auditDetails.statusMessage = response.statusMessage ? response.statusMessage : statusCodes[response.statusCode];
+					if(response.statusCode >= 400) logMsgMeta.error = `${logMsgMeta.statusCode}: ${logMsgMeta.statusMessage}`;
+					if(err) logMsgMeta.error = err instanceof TwyrBaseError ? err.toString() : err.stack;
 
-					delete auditDetails.response;
-					return auditService.addResponseAsync(auditDetails);
+					return auditService.addResponseAsync(logMsgMeta);
 				})
 				.catch((auditEerr) => {
 					loggerSrvc.error(auditEerr);
@@ -298,16 +311,7 @@ class ExpressService extends TwyrBaseService {
 		.use(logger('combined', {
 			'stream': loggerStream
 		}))
-		.use((request, response, next) => {
-			request.twyrId = uuid.v4().toString();
-
-			if(!this.$enabled) {
-				response.status(500).redirect('/error');
-				return;
-			}
-
-			next();
-		})
+		.use(setupRequestResponseForAudit)
 		.use(debounce())
 		.use(cors(corsOptions))
 		.use(favicon(path.join(__dirname, this.$config.favicon)))
