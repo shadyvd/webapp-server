@@ -42,6 +42,21 @@ exports.seed = function(knex, Promise) {
 						'parent': parentId[0],
 						'type': 'service',
 						'admin_only': true,
+						'name': 'AuditService',
+						'display_name': 'Audit Service',
+						'description': 'The Twy\'r Web Application Audit Service - waits for a request response pair, and sends it off to the audit pubsub channel',
+						'metadata': {
+							'author': 'Twy\'r',
+							'version': '1.8.3',
+							'website': 'https://twyr.github.io',
+							'demo': 'https://twyr.github.io',
+							'documentation': 'https://twyr.github.io'
+						}
+					}),
+					knex('modules').insert({
+						'parent': parentId[0],
+						'type': 'service',
+						'admin_only': true,
 						'name': 'ApiService',
 						'display_name': 'API Service',
 						'description': 'The Twy\'r Web Application API Service - allows modules to expose interfaces for use by other modules without direct references to each other',
