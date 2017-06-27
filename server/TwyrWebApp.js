@@ -94,8 +94,7 @@ class TwyrWebApp extends TwyrBaseModule {
 	}
 
 	_addRoutes(callback) {
-		const expressApp = this.$services.ExpressService.Interface,
-			loggerSrvc = this.$services.LoggerService.Interface;
+		const expressApp = this.$services.ExpressService.Interface;
 
 		this._dummyAsync()
 		.then(() => {

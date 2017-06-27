@@ -123,8 +123,8 @@ class LoggerService extends TwyrBaseService {
 		this.$winston.configure({
 			'transports': transports,
 			'rewriters': [(level, msg, meta) => {
-				if(!meta) return undefined;
-				if(!Object.keys(meta).length) return undefined;
+				if(!meta) return '\n\n';
+				if(!Object.keys(meta).length) return '\n\n';
 
 				Object.keys(meta).forEach((key) => {
 					if(!meta[key]) {
@@ -143,8 +143,8 @@ class LoggerService extends TwyrBaseService {
 						delete meta[key];
 				});
 
-				if(!Object.keys(meta).length) return undefined;
-				return JSON.stringify(meta, undefined, '\t');
+				if(!Object.keys(meta).length) return '\n\n';
+				return `${JSON.stringify(meta, undefined, '\t')}\n\n`;
 			}]
 		});
 

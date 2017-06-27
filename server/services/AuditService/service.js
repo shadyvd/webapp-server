@@ -265,34 +265,39 @@ class AuditService extends TwyrBaseService {
 			return;
 		}
 
-		this._dummyAsync()
-		.then(() => {
-			return this._cleanBeforePublishAsync(id);
-		})
-		.then((auditDetails) => {
-			if(auditDetails.published) return;
-
-			auditDetails.published = true;
-			this.$auditCache.put(id, auditDetails);
-
-			if(auditDetails.error) {
-				this.$dependencies.LoggerService.error(`Error Servicing Request ${auditDetails.id} - ${auditDetails.url}:`, auditDetails);
-				return this.$dependencies.PubsubService.publishAsync('*', 'TWYR_AUDIT', JSON.stringify(auditDetails));
-			}
-			else {
-				this.$dependencies.LoggerService.debug(`Serviced Request ${auditDetails.id} - ${auditDetails.url}:`, auditDetails);
-				return this.$dependencies.PubsubService.publishAsync('*', 'TWYR_AUDIT', JSON.stringify(auditDetails));
-			}
-		})
-		.then(() => {
-			this.$auditCache.del(id);
+		const alreadyScheduled = this.$auditCache.get(`${id}-scheduled`);
+		if(alreadyScheduled) {
 			if(callback) callback(null, true);
+			return;
+		}
 
-			return null;
-		})
-		.catch((err) => {
-			if(callback) callback(err);
-		});
+		this.$auditCache.put(`${id}-scheduled`, setTimeout(() => {
+			this._dummyAsync()
+			.then(() => {
+				return this._cleanBeforePublishAsync(id);
+			})
+			.then((auditDetails) => {
+				if(auditDetails.error) {
+					this.$dependencies.LoggerService.error(`Error Servicing Request ${auditDetails.id} - ${auditDetails.url}:`, auditDetails);
+					return this.$dependencies.PubsubService.publishAsync('*', 'TWYR_AUDIT', JSON.stringify(auditDetails));
+				}
+				else {
+					this.$dependencies.LoggerService.debug(`Serviced Request ${auditDetails.id} - ${auditDetails.url}:`, auditDetails);
+					return this.$dependencies.PubsubService.publishAsync('*', 'TWYR_AUDIT', JSON.stringify(auditDetails));
+				}
+			})
+			.then(() => {
+				if(callback) callback(null, true);
+				return null;
+			})
+			.catch((err) => {
+				if(callback) callback(err);
+			})
+			.finally(() => {
+				this.$auditCache.del(id);
+				this.$auditCache.del(`${id}-scheduled`);
+			});
+		}, 500));
 	}
 
 	_processTimedoutRequests(key, value) {
