@@ -318,7 +318,7 @@ else {
 
 	// Listen for uncaught exceptions, and shutdown when they occur...
 	process.on('uncaughtException', (err) => {
-		if(env === 'development') console.error(`Twy's Server #${cluster.worker.id}::Process Error: ${err.stack}`);
+		if(env === 'development') console.error(`Twy's Web Application #${cluster.worker.id}::Process Error: ${err.stack}`);
 		shutdownFn();
 	});
 

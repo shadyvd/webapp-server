@@ -45,8 +45,14 @@ class TwyrModuleLoader extends EventEmitter {
 			'value': basePath
 		});
 
-		const finalStatus = [];
+		if(!this.$locale) {
+			Object.defineProperty(this, '$locale', {
+				'__proto__': null,
+				'value': this.$module ? this.$module.locale : 'en'
+			});
+		}
 
+		const finalStatus = [];
 		this._dummyAsync()
 		.then(() => {
 			return this._loadUtilitiesAsync(configSrvc);

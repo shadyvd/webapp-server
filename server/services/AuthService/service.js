@@ -126,7 +126,7 @@ class AuthService extends TwyrBaseService {
 
 	get Interface() { return this.$passport; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['ConfigurationService', 'CacheService', 'DatabaseService', 'LoggerService']; }
+	get dependencies() { return ['ConfigurationService', 'CacheService', 'DatabaseService', 'LocalizationService', 'LoggerService']; }
 }
 
 exports.service = AuthService;

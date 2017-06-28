@@ -33,8 +33,14 @@ class TwyrMiddlewareLoader extends TwyrModuleLoader {
 			'value': basePath
 		});
 
-		const finalStatus = [];
+		if(!this.$locale) {
+			Object.defineProperty(this, '$locale', {
+				'__proto__': null,
+				'value': this.$module.$locale
+			});
+		}
 
+		const finalStatus = [];
 		this._dummyAsync()
 		.then(() => {
 			return this._loadUtilitiesAsync(configSrvc);

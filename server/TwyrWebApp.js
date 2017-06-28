@@ -33,6 +33,30 @@ class TwyrWebApp extends TwyrBaseModule {
 		this._loadConfig();
 	}
 
+	load(configSrvc, callback) {
+		this._dummyAsync()
+		.then(() => {
+			const osLocale = require('os-locale');
+			return osLocale();
+		})
+		.then((locale) => {
+			Object.defineProperty(this, '$locale', {
+				'__proto__': null,
+				'value': locale
+			});
+
+			const superLoadAsync = promises.promisify(super.load.bind(this));
+			return superLoadAsync(configSrvc);
+		})
+		.then((status) => {
+			if(callback) callback(null, status);
+			return null;
+		})
+		.catch((setupRouterErr) => {
+			if(callback) callback(setupRouterErr);
+		});
+	}
+
 	start(dependencies, callback) {
 		this._dummyAsync()
 		.then(() => {

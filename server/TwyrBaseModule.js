@@ -57,6 +57,13 @@ class TwyrBaseModule extends EventEmitter {
 			this.$config = configSrvc ? moduleConfig[0].configuration : this.$config;
 			this.$enabled = configSrvc ? moduleConfig[0].state : true;
 
+			if(!this.$locale) {
+				Object.defineProperty(this, '$locale', {
+					'__proto__': null,
+					'value': this.$module ? this.$module.locale : 'en'
+				});
+			}
+
 			return this.$loader.loadAsync(configSrvc, this.basePath);
 		})
 		.then((status) => {

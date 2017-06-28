@@ -294,8 +294,8 @@ class AuditService extends TwyrBaseService {
 				if(callback) callback(err);
 			})
 			.finally(() => {
-				this.$auditCache.del(id);
 				this.$auditCache.del(`${id}-scheduled`);
+				this.$auditCache.del(id);
 			});
 		}, 500));
 	}
@@ -379,7 +379,7 @@ class AuditService extends TwyrBaseService {
 	}
 
 	get basePath() { return __dirname; }
-	get dependencies() { return ['ConfigurationService', 'LoggerService', 'PubsubService']; }
+	get dependencies() { return ['ConfigurationService', 'LocalizationService', 'LoggerService', 'PubsubService']; }
 }
 
 exports.service = AuditService;

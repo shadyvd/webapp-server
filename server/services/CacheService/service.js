@@ -146,7 +146,7 @@ class CacheService extends TwyrBaseService {
 
 	get Interface() { return this.$cache; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['ConfigurationService', 'LoggerService']; }
+	get dependencies() { return ['ConfigurationService', 'LocalizationService', 'LoggerService']; }
 }
 
 exports.service = CacheService;

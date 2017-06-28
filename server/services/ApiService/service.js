@@ -150,7 +150,7 @@ class ApiService extends TwyrBaseService {
 	}
 
 	get basePath() { return __dirname; }
-	get dependencies() { return ['ConfigurationService', 'LoggerService']; }
+	get dependencies() { return ['ConfigurationService', 'LocalizationService', 'LoggerService']; }
 }
 
 exports.service = ApiService;

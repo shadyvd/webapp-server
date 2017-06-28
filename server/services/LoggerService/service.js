@@ -123,8 +123,8 @@ class LoggerService extends TwyrBaseService {
 		this.$winston.configure({
 			'transports': transports,
 			'rewriters': [(level, msg, meta) => {
-				if(!meta) return '\n\n';
-				if(!Object.keys(meta).length) return '\n\n';
+				if(!meta) return '\n';
+				if(!Object.keys(meta).length) return '\n';
 
 				Object.keys(meta).forEach((key) => {
 					if(!meta[key]) {
@@ -143,7 +143,7 @@ class LoggerService extends TwyrBaseService {
 						delete meta[key];
 				});
 
-				if(!Object.keys(meta).length) return '\n\n';
+				if(!Object.keys(meta).length) return '\n';
 				return `${JSON.stringify(meta, undefined, '\t')}\n\n`;
 			}]
 		});
@@ -158,7 +158,7 @@ class LoggerService extends TwyrBaseService {
 
 		// The first log of this logger instance...
 		if((process.env.NODE_ENV || 'development') === 'development')
-			this.$winston.debug('\n\nTicking away the packets that make up a dull day...\n\n');
+			this.$winston.debug('\n\nTicking away the packets that make up a dull day...');
 
 		if(callback) callback();
 	}
@@ -166,7 +166,7 @@ class LoggerService extends TwyrBaseService {
 	_teardownWinston(callback) {
 		// The last log of this logger instance...
 		if((process.env.NODE_ENV || 'development') === 'development')
-			this.$winston.debug('\n\nGoodbye, wi-fi, goodbye...\n\n');
+			this.$winston.debug('\n\nGoodbye, wi-fi, goodbye...');
 
 		const config = this.$config,
 			winstonInstance = this.$winston;

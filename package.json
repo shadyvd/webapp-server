@@ -78,6 +78,7 @@
 		"nodemailer": "*",
 		"nodemailer-smtp-transport": "*",
 		"on-finished": "*",
+		"os-locale": "^2.0.0",
 		"passport": "*",
 		"passport-facebook": "*",
 		"passport-github": "*",

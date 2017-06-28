@@ -156,7 +156,7 @@ class DatabaseService extends TwyrBaseService {
 
 	get Interface() { return this.$database; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['ConfigurationService', 'LoggerService']; }
+	get dependencies() { return ['ConfigurationService', 'LocalizationService', 'LoggerService']; }
 }
 
 exports.service = DatabaseService;

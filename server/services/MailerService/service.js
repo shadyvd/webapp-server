@@ -113,7 +113,7 @@ class MailerService extends TwyrBaseService {
 
 	get Interface() { return this.$smtpMailer; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['LoggerService']; }
+	get dependencies() { return ['ConfigurationService', 'LocalizationService', 'LoggerService']; }
 }
 
 exports.service = MailerService;
