@@ -77,7 +77,6 @@ class ExpressService extends TwyrBaseService {
 		})
 		.then(() => {
 			this.$config = config;
-
 			return this._setupExpressAsync();
 		})
 		.then(() => {
@@ -120,6 +119,7 @@ class ExpressService extends TwyrBaseService {
 			path = require('path'),
 			poweredBy = require('connect-powered-by'),
 			serveStatic = require('serve-static'),
+			serverDestroy = require('server-destroy'),
 			session = require('express-session'),
 			statusCodes = require('http').STATUS_CODES,
 			timeout = require('connect-timeout'),
@@ -359,22 +359,42 @@ class ExpressService extends TwyrBaseService {
 		device.enableDeviceHelpers(webServer);
 
 		// Step 6: Create the Server
-		const protocol = require(this.$config.protocol || 'http');
+		this._dummyAsync()
+		.then(() => {
+			if((this.$config.protocol || 'http') === 'http')
+				return [];
 
-		if((this.$config.protocol || 'http') === 'http')
-			this.$server = promises.promisifyAll(protocol.createServer(webServer));
-		else {
-			this.$config.ssl.key = filesystem.readFileSync(path.join(__dirname, this.$config.ssl.key));
-			this.$config.ssl.cert = filesystem.readFileSync(path.join(__dirname, this.$config.ssl.cert));
+			const promiseResolutions = [];
 
-			this.$server = promises.promisifyAll(protocol.createServer(this.$config.ssl, webServer));
-		}
+			promiseResolutions.push(filesystem.readFileAsync(path.isAbsolute(this.$config.ssl.key) ? this.$config.ssl.key : path.join(__dirname, this.$config.ssl.key)));
+			promiseResolutions.push(filesystem.readFileAsync(path.isAbsolute(this.$config.ssl.cert) ? this.$config.ssl.cert : path.join(__dirname, this.$config.ssl.cert)));
 
-		// Finally, start listening...
-		this.$server.listenAsync(this.$config.port[this.$module.name] || 9090, undefined, undefined)
+			return promises.all(promiseResolutions);
+		})
+		.then((sslFiles) => {
+			const protocol = require(this.$config.protocol || 'http');
+
+			if((this.$config.protocol || 'http') === 'http')
+				this.$server = promises.promisifyAll(protocol.createServer(webServer));
+			else {
+				this.$config.ssl.key = sslFiles[0];
+				this.$config.ssl.cert = sslFiles[1];
+
+				this.$server = promises.promisifyAll(protocol.createServer(this.$config.ssl, webServer));
+			}
+
+			// Start listening...
+			return this.$server.listenAsync(this.$config.port[this.$module.name] || 9090, undefined, undefined);
+		})
 		.then(() => {
 			this.$server.on('connection', this._serverConnection.bind(this));
 			this.$server.on('error', this._serverError.bind(this));
+
+			// Miscellaneous...
+			this.$express.$server = this.$server;
+
+			serverDestroy(this.$server);
+			this.$server.destroyAsync = promises.promisify(this.$server.destroy);
 
 			if(callback) callback(null, true);
 		})
@@ -382,9 +402,6 @@ class ExpressService extends TwyrBaseService {
 			loggerSrvc.error(`Error listening on ${this.$config.port[this.$module.name] || 9090}:\n${err.stack}`);
 			if(callback) callback(err);
 		});
-
-		// Miscellaneous...
-		this.$express.$server = this.$server;
 	}
 
 	_teardownExpress(callback) {
@@ -396,21 +413,22 @@ class ExpressService extends TwyrBaseService {
 		this._dummyAsync()
 		.then(() => {
 			if(this.$server.listening)
-				return this.$server.closeAsync();
+				return this.$server.destroyAsync();
 			else
 				return undefined;
 		})
 		.then(() => {
-			this.$express._router.stack.length = 0;
-
 			this.$server.removeAllListeners('connection');
 			this.$server.removeAllListeners('error');
 
+			this.$express._router.stack.length = 0;
 			delete this.$express.$server;
 
 			delete this.$express;
 			delete this.$server;
-
+		})
+		.delay(2000)
+		.then(() => {
 			if(callback) callback(null, true);
 		})
 		.catch((err) => {

@@ -91,6 +91,7 @@
 		"primus-rooms": "*",
 		"redis": "*",
 		"serve-favicon": "*",
+		"server-destroy": "^1.0.1",
 		"stream-transform": "*",
 		"uuid": "^3.1.0",
 		"validatorjs": "*",

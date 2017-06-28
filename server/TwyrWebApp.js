@@ -58,7 +58,10 @@ class TwyrWebApp extends TwyrBaseModule {
 			return superSubmoduleReconfigureAsync(subModule);
 		})
 		.then((status) => {
-			return promises.all([status, this._addRoutesAsync()]);
+			if(subModule.name !== 'ExpressService')
+				return [status];
+			else
+				return promises.all([status, this._addRoutesAsync()]);
 		})
 		.then((status) => {
 			if(callback) callback(null, status[0]);

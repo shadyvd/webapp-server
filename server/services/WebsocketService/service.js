@@ -20,8 +20,7 @@ const promises = require('bluebird');
  * Module dependencies, required for this module
  * @ignore
  */
-const TwyrBaseError = require('./../../TwyrBaseError').TwyrBaseError,
-	TwyrBaseService = require('./../TwyrBaseService').TwyrBaseService;
+const TwyrBaseService = require('./../TwyrBaseService').TwyrBaseService;
 
 class WebsocketService extends TwyrBaseService {
 	constructor(module) {
@@ -103,8 +102,10 @@ class WebsocketService extends TwyrBaseService {
 
 		this._dummyAsync()
 		.then(() => {
-			const thisConfig = JSON.parse(JSON.stringify(this.$config));
-			return this._reconfigureAsync(thisConfig);
+			return this._teardownPrimusAsync();
+		})
+		.then(() => {
+			return this._setupPrimusAsync();
 		})
 		.then(() => {
 			if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_dependencyReconfigure: ${dependency.name}`);
@@ -121,15 +122,11 @@ class WebsocketService extends TwyrBaseService {
 
 		const cookieParser = require('cookie-parser'),
 			device = require('express-device'),
-			onFinished = require('on-finished'),
 			session = require('express-session'),
-			statusCodes = require('http').STATUS_CODES,
 			url = require('url'),
 			uuid = require('uuid');
 
 		const SessionStore = require(`connect-${this.$config.session.store.media}`)(session);
-		const loggerSrvc = this.$dependencies.LoggerService;
-
 		const _sessionStore = new SessionStore({
 			'client': this.$dependencies.CacheService,
 			'prefix': this.$config.session.store.prefix,

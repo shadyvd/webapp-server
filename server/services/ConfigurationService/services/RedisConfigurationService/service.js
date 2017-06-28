@@ -93,7 +93,7 @@ class RedisConfigurationService extends TwyrBaseService {
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Load Configuration Error: ${err.stack}`);
+			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Load Configuration from Cache Error: ${err.stack}`);
 			if(callback) callback(err);
 		});
 	}
@@ -124,7 +124,7 @@ class RedisConfigurationService extends TwyrBaseService {
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Save Configuration Error: ${err.stack}`);
+			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Save Configuration to Cache Error: ${err.stack}`);
 			if(callback) callback(err);
 		});
 	}
@@ -149,7 +149,7 @@ class RedisConfigurationService extends TwyrBaseService {
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Load State Error: ${err.stack}`);
+			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Load State from Cache Error: ${err.stack}`);
 			if(callback) callback(err);
 		});
 	}
@@ -178,7 +178,7 @@ class RedisConfigurationService extends TwyrBaseService {
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Save Configuration Error: ${err.stack}`);
+			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Save State to Cache Error: ${err.stack}`);
 			if(callback) callback(err);
 		});
 	}
@@ -217,7 +217,7 @@ class RedisConfigurationService extends TwyrBaseService {
 				this.$module.emit('update-config', this.name, twyrModule, newConfig);
 			})
 			.catch((err) => {
-				if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Save Configuration to File Error: ${err.stack}`);
+				if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Update Configuration to Cache Error: ${err.stack}`);
 			});
 		}
 	}
@@ -241,7 +241,7 @@ class RedisConfigurationService extends TwyrBaseService {
 			return this.$cache.setAsync(configPath, configString);
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Save Configuration to File Error: ${err.stack}`);
+			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Save Configuration to Cache Error: ${err.stack}`);
 		});
 	}
 
@@ -261,7 +261,7 @@ class RedisConfigurationService extends TwyrBaseService {
 			return this.$cache.setAsync(configPath, JSON.stringify(state));
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Save Configuration to File Error: ${err.stack}`);
+			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Save State to Cache Error: ${err.stack}`);
 		});
 	}
 
@@ -341,7 +341,7 @@ class RedisConfigurationService extends TwyrBaseService {
 				return null;
 			})
 			.catch((err) => {
-				if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Save Configuration to File Error: ${err.stack}`);
+				if((process.env.NODE_ENV || 'development') === 'development') console.error(`${module} Teardown Cache Error: ${err.stack}`);
 			});
 		}
 	}
