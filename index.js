@@ -92,6 +92,30 @@ if(cluster.isMaster) {
 		}
 	};
 
+	const sendTerminatefn = () => {
+		if(env === 'development' || env === 'test') console.log(`Twy'r Web Application Master: Stopping now...`);
+		config.restart = false;
+
+		Object.keys(cluster.workers).forEach((workerId) => {
+			cluster.workers[workerId].send('terminate');
+		});
+
+		cluster.disconnectAsync()
+		.timeout(60000)
+		.then(() => {
+			if(env === 'development' || env === 'test') console.log(`Twy'r Web Application Master: Disconnected workers. Exiting now...`);
+			return null;
+		})
+		.timeout(60000)
+		.catch((err) => {
+			if(env === 'development' || env === 'test') console.error(`Twy'r Web Application Master Error: ${err.stack}\n\n`);
+		})
+		.finally(() => {
+			const processExit = process.exit;
+			processExit(0);
+		});
+	};
+
 	const timeoutMonitor = {};
 
 	cluster
@@ -154,36 +178,14 @@ if(cluster.isMaster) {
 	if(env === 'development') console.log(`Twy'r Web Application Master: Starting now...`);
 	cluster.fork();
 
-
 	// In development mode (i.e., start as "npm start"), wait for input from command line
 	// In other environments, start a telnet server and listen for the exit command
 	if(env === 'development' || env === 'test') {
 		const repl = require('repl');
 
 		const replConsole = repl.start(config.repl);
-		replConsole.on('exit', () => {
-			console.log(`Twy'r Web Application Master: Stopping now...`);
-			config.restart = false;
 
-			Object.keys(cluster.workers).forEach((workerId) => {
-				cluster.workers[workerId].send('terminate');
-			});
-
-			cluster.disconnectAsync()
-			.timeout(60000)
-			.then(() => {
-				console.log(`Twy'r Web Application Master: Disconnected workers. Exiting now...`);
-				return null;
-			})
-			.timeout(60000)
-			.catch((err) => {
-				console.error(`Twy'r Web Application Master Error: ${err.stack}\n\n`);
-			})
-			.finally(() => {
-				const processExit = process.exit;
-				processExit(0);
-			});
-		});
+		replConsole.on('exit', sendTerminatefn);
 	}
 	else {
 		const telnetServer = require('net').createServer((socket) => {
@@ -194,35 +196,15 @@ if(cluster.isMaster) {
 
 			const replConsole = repl.start(config.repl.parameters);
 			replConsole.context.socket = socket;
-			replConsole.on('exit', () => {
-				config.restart = false;
 
-				Object.keys(cluster.workers).forEach((workerId) => {
-					cluster.workers[workerId].send('terminate');
-				});
-
-				cluster.disconnectAsync()
-				.timeout(60000)
-				.then(() => {
-					console.log(`Twy'r Web Application Master: Disconnected workers. Exiting now...`);
-
-					socket.end();
-					telnetServer.close();
-					return null;
-				})
-				.timeout(60000)
-				.catch((err) => {
-					console.error(`Twy'r Web Application Master Error: ${err.stack}\n\n`);
-				})
-				.finally(() => {
-					const processExit = process.exit;
-					processExit(0);
-				});
-			});
+			replConsole.on('exit', sendTerminatefn);
 		});
 
 		telnetServer.listen(config.repl.controlPort, config.repl.controlHost);
 	}
+
+//	process.on('SIGINT', sendTerminatefn);
+//	process.on('SIGTERM', sendTerminatefn);
 }
 else {
 	const TwyrWebApp = require(config.main).TwyrWebApp;
@@ -296,6 +278,7 @@ else {
 		})
 		.finally(() => {
 			if(env === 'development') console.log(`\n\n${allStatuses.join('\n')}\n\n`);
+//			require('active-handles').print();
 			return null;
 		});
 	};
