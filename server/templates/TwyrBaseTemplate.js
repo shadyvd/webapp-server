@@ -25,9 +25,9 @@ const TwyrBaseModule = require('./../TwyrBaseModule').TwyrBaseModule;
 class TwyrBaseTemplate extends TwyrBaseModule {
 	constructor(module, loader) {
 		super(module, loader);
+		this._addDependencies('ConfigurationService', 'ExpressService', 'LoggerService');
 
 		const TwyrTemplateLoader = require('./TwyrTemplateLoader').TwyrTemplateLoader;
-
 		const _loader = loader || promises.promisifyAll(new TwyrTemplateLoader(this), {
 			'filter': function() {
 				return true;
@@ -589,7 +589,6 @@ class TwyrBaseTemplate extends TwyrBaseModule {
 
 	get Router() { return this.$router; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['ConfigurationService', 'ExpressService', 'LoggerService']; }
 }
 
 exports.TwyrBaseTemplate = TwyrBaseTemplate;

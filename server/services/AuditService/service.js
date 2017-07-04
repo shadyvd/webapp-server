@@ -26,6 +26,7 @@ const TwyrBaseService = require('./../TwyrBaseService').TwyrBaseService,
 class AuditService extends TwyrBaseService {
 	constructor(module) {
 		super(module);
+		this._addDependencies('ConfigurationService', 'LocalizationService', 'LoggerService', 'PubsubService');
 	}
 
 	start(dependencies, callback) {
@@ -265,34 +266,39 @@ class AuditService extends TwyrBaseService {
 			return;
 		}
 
-		this._dummyAsync()
-		.then(() => {
-			return this._cleanBeforePublishAsync(id);
-		})
-		.then((auditDetails) => {
-			if(auditDetails.published) return;
-
-			auditDetails.published = true;
-			this.$auditCache.put(id, auditDetails);
-
-			if(auditDetails.error) {
-				this.$dependencies.LoggerService.error(`Error Servicing Request ${auditDetails.id} - ${auditDetails.url}:`, auditDetails);
-				return this.$dependencies.PubsubService.publishAsync('*', 'TWYR_AUDIT', JSON.stringify(auditDetails));
-			}
-			else {
-				this.$dependencies.LoggerService.debug(`Serviced Request ${auditDetails.id} - ${auditDetails.url}:`, auditDetails);
-				return this.$dependencies.PubsubService.publishAsync('*', 'TWYR_AUDIT', JSON.stringify(auditDetails));
-			}
-		})
-		.then(() => {
-			this.$auditCache.del(id);
+		const alreadyScheduled = this.$auditCache.get(`${id}-scheduled`);
+		if(alreadyScheduled) {
 			if(callback) callback(null, true);
+			return;
+		}
 
-			return null;
-		})
-		.catch((err) => {
-			if(callback) callback(err);
-		});
+		this.$auditCache.put(`${id}-scheduled`, setTimeout(() => {
+			this._dummyAsync()
+			.then(() => {
+				return this._cleanBeforePublishAsync(id);
+			})
+			.then((auditDetails) => {
+				if(auditDetails.error) {
+					this.$dependencies.LoggerService.error(`Error Servicing Request ${auditDetails.id} - ${auditDetails.url}:`, auditDetails);
+					return this.$dependencies.PubsubService.publishAsync('*', 'TWYR_AUDIT', JSON.stringify(auditDetails));
+				}
+				else {
+					this.$dependencies.LoggerService.debug(`Serviced Request ${auditDetails.id} - ${auditDetails.url}:`, auditDetails);
+					return this.$dependencies.PubsubService.publishAsync('*', 'TWYR_AUDIT', JSON.stringify(auditDetails));
+				}
+			})
+			.then(() => {
+				if(callback) callback(null, true);
+				return null;
+			})
+			.catch((err) => {
+				if(callback) callback(err);
+			})
+			.finally(() => {
+				this.$auditCache.del(`${id}-scheduled`);
+				this.$auditCache.del(id);
+			});
+		}, 500));
 	}
 
 	_processTimedoutRequests(key, value) {
@@ -374,7 +380,6 @@ class AuditService extends TwyrBaseService {
 	}
 
 	get basePath() { return __dirname; }
-	get dependencies() { return ['ConfigurationService', 'LoggerService', 'PubsubService']; }
 }
 
 exports.service = AuditService;

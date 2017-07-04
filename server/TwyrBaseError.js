@@ -22,6 +22,10 @@
  * @ignore
  */
 
+/**
+ * Private variables exposed only using getter / setter
+ * @ignore
+ */
 const _innerError = Symbol();
 
 class TwyrBaseError extends Error {

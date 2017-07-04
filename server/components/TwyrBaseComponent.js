@@ -26,6 +26,7 @@ const TwyrBaseModule = require('./../TwyrBaseModule').TwyrBaseModule,
 class TwyrBaseComponent extends TwyrBaseModule {
 	constructor(module, loader) {
 		super(module, loader);
+		this._addDependencies('ApiService', 'CacheService', 'ConfigurationService', 'ExpressService', 'LoggerService');
 
 		const TwyrComponentLoader = require('./TwyrComponentLoader').TwyrComponentLoader;
 		loader = loader || promises.promisifyAll(new TwyrComponentLoader(this), {
@@ -44,18 +45,40 @@ class TwyrBaseComponent extends TwyrBaseModule {
 			const superStartAsync = promises.promisify(super.start.bind(this));
 			return superStartAsync(dependencies);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`${this.name}::start: Super Start Error`, err);
+			throw error;
+		})
 		.then(() => {
 			return this._setupRouterAsync();
 		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`${this.name}::start: Setup Router Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			return promises.all([status, this._addRoutesAsync()]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`${this.name}::start: Add Routes Error`, err);
+			throw error;
 		})
 		.then((status) => {
 			if(callback) callback(null, status[0]);
 			return null;
 		})
-		.catch((setupRouterErr) => {
-			if(callback) callback(setupRouterErr);
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`${this.name}::start: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -65,15 +88,31 @@ class TwyrBaseComponent extends TwyrBaseModule {
 			const superStopAsync = promises.promisify(super.stop.bind(this));
 			return superStopAsync();
 		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`${this.name}::stop: Super Stop Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			return promises.all([status, this._deleteRoutesAsync()]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrComponentError) throw err;
+
+			const error = new TwyrComponentError(`${this.name}::stop: Delete Routes Error`, err);
+			throw error;
 		})
 		.then((status) => {
 			if(callback) callback(null, status[0]);
 			return null;
 		})
-		.catch((setupRouterErr) => {
-			if(callback) callback(setupRouterErr);
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrComponentError))
+				error = new TwyrComponentError(`${this.name}::stop: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -120,7 +159,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrComponentError))
-				error = new TwyrComponentError(`Error setting up the router`, err);
+				error = new TwyrComponentError(`${this.name}::_setupRouter: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -147,7 +186,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrComponentError))
-				error = new TwyrComponentError(`Error adding routes`, err);
+				error = new TwyrComponentError(`${this.name}::_addRoutes: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -163,7 +202,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrComponentError))
-				error = new TwyrComponentError(`Error deleting routes`, err);
+				error = new TwyrComponentError(`${this.name}::_deleteRoutes: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -185,7 +224,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrComponentError))
-				error = new TwyrComponentError(`Error returning empty Ember assets`, err);
+				error = new TwyrComponentError(`${this.name}::_getEmptyClientsideAssets: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -207,7 +246,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error generating Ember assets`, err);
+			const error = new TwyrComponentError(`${this.name}::_getClientsideAssets: Error Generating Ember assets`, err);
 			throw error;
 		})
 		.then((clientAssets) => {
@@ -229,7 +268,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error generating sub-component Ember assets`, err);
+			const error = new TwyrComponentError(`${this.name}::_getClientsideAssets: Error generating sub-component Ember assets`, err);
 			throw error;
 		})
 		.then((componentAssets) => {
@@ -245,7 +284,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrComponentError))
-				error = new TwyrComponentError(`Error returning Ember assets`, err);
+				error = new TwyrComponentError(`${this.name}::_getClientsideAssets: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -265,7 +304,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error checking Model folder existence`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmberModels: Error checking Model folder existence`, err);
 			throw error;
 		})
 		.then((modelDirExists) => {
@@ -275,7 +314,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error reading Ember Model folder`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmberModels: Error reading Ember Model folder`, err);
 			throw error;
 		})
 		.then((modelDirObjects) => {
@@ -290,7 +329,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error stat-ing Ember Model folder`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmberModels: Error stat-ing Ember Model folder`, err);
 			throw error;
 		})
 		.then((results) => {
@@ -315,7 +354,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error reading Ember Models`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmberModels: Error reading Ember Models`, err);
 			throw error;
 		})
 		.then((modelFiles) => {
@@ -325,7 +364,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrComponentError))
-				error = new TwyrComponentError(`Error returning Ember Models`, err);
+				error = new TwyrComponentError(`${this.name}::_getEmberModels: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -346,7 +385,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error checking Ember Component folder existence`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmberComponents: Error checking Ember Component folder existence`, err);
 			throw error;
 		})
 		.then((componentDirExists) => {
@@ -364,7 +403,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error reading Ember Components`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmberComponents: Error reading Ember Components`, err);
 			throw error;
 		})
 		.then((componentJS) => {
@@ -374,7 +413,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrComponentError))
-				error = new TwyrComponentError(`Error returning Ember Components`, err);
+				error = new TwyrComponentError(`${this.name}::_getEmberComponents: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -395,7 +434,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error checking Ember Component HTML folder existence`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmbercomponentHTMLs: Error checking Ember Component HTML folder existence`, err);
 			throw error;
 		})
 		.then((componentHTMLDirExists) => {
@@ -418,7 +457,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error rendering Ember Component HTMLs`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmbercomponentHTMLs: Error rendering Ember Component HTMLs`, err);
 			throw error;
 		})
 		.then((componentHTMLs) => {
@@ -428,7 +467,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrComponentError))
-				error = new TwyrComponentError(`Error returning Ember Component HTMLs`, err);
+				error = new TwyrComponentError(`${this.name}::_getEmberComponentHTMLs: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -448,7 +487,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error checking Ember Service folder existence`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmberServices: Error checking Ember Service folder existence`, err);
 			throw error;
 		})
 		.then((srvcDirExists) => {
@@ -458,7 +497,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error reading Ember Service folder`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmberServices: Error reading Ember Service folder`, err);
 			throw error;
 		})
 		.then((srvcDirObjects) => {
@@ -473,7 +512,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error stat-ing Ember Service folder`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmberServices: Error stat-ing Ember Service folder`, err);
 			throw error;
 		})
 		.then((results) => {
@@ -498,7 +537,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error reading Ember Services`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmberServices: Error reading Ember Services`, err);
 			throw error;
 		})
 		.then((srvcFiles) => {
@@ -508,7 +547,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrComponentError))
-				error = new TwyrComponentError(`Error returning Ember Services`, err);
+				error = new TwyrComponentError(`${this.name}::_getEmberServices: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -528,7 +567,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error checking Ember Helper folder existence`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmberHelpers: Error checking Ember Helper folder existence`, err);
 			throw error;
 		})
 		.then((helperDirExists) => {
@@ -538,7 +577,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error reading Ember Helper folder existence`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmberHelpers: Error reading Ember Helper folder`, err);
 			throw error;
 		})
 		.then((helperDirObjects) => {
@@ -553,7 +592,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error stat-ing Ember Helper folder existence`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmberHelpers: Error stat-ing Ember Helper folder existence`, err);
 			throw error;
 		})
 		.then((results) => {
@@ -578,7 +617,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrComponentError) throw err;
 
-			const error = new TwyrComponentError(`Error reading Ember Helpers`, err);
+			const error = new TwyrComponentError(`${this.name}::_getEmberHelpers: Error reading Ember Helpers`, err);
 			throw error;
 		})
 		.then((helperFiles) => {
@@ -588,7 +627,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrComponentError))
-				error = new TwyrComponentError(`Error returning Ember Helpers`, err);
+				error = new TwyrComponentError(`${this.name}::_getEmberHelpers: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -602,7 +641,7 @@ class TwyrBaseComponent extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrComponentError))
-				error = new TwyrComponentError(`Error returning Empty Ember Asset`, err);
+				error = new TwyrComponentError(`${this.name}::_emptyEmberAsset: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -610,7 +649,6 @@ class TwyrBaseComponent extends TwyrBaseModule {
 
 	get Router() { return this.$router; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['ApiService', 'CacheService', 'ConfigurationService', 'ExpressService', 'LoggerService']; }
 }
 
 exports.TwyrBaseComponent = TwyrBaseComponent;

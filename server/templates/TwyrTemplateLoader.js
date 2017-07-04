@@ -28,6 +28,18 @@ class TwyrTemplateLoader extends TwyrModuleLoader {
 	}
 
 	load(configSrvc, basePath, callback) {
+		Object.defineProperty(this, '$locale', {
+			'__proto__': null,
+			'value': this.$module.$locale
+		});
+
+		if(!this.$locale) {
+			Object.defineProperty(this, '$locale', {
+				'__proto__': null,
+				'value': this.$module.$locale
+			});
+		}
+
 		if(callback) callback(null, true);
 	}
 

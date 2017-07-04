@@ -25,6 +25,7 @@ const TwyrBaseService = require('./../TwyrBaseService').TwyrBaseService;
 class DatabaseService extends TwyrBaseService {
 	constructor(module) {
 		super(module);
+		this._addDependencies('ConfigurationService', 'LocalizationService', 'LoggerService');
 	}
 
 	start(dependencies, callback) {
@@ -156,7 +157,6 @@ class DatabaseService extends TwyrBaseService {
 
 	get Interface() { return this.$database; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['ConfigurationService', 'LoggerService']; }
 }
 
 exports.service = DatabaseService;

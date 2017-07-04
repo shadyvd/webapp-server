@@ -114,8 +114,8 @@ class Application extends TwyrBaseMiddleware {
 			let serverApplications = results.shift().rows,
 				tenantApplicationCategories = results.shift().rows;
 
-			const tenantUserApplications = results.shift(),
-				responseData = { 'data': [], 'included': [] };
+			const tenantUserApplications = results.shift();
+			const responseData = { 'data': [], 'included': [] };
 
 			serverApplications = serverApplications.filter((serverApplication) => {
 				return tenantUserApplications.indexOf(inflection.dasherize(serverApplication.name).toLowerCase()) >= 0;

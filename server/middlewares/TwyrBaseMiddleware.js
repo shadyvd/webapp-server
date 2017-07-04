@@ -20,11 +20,13 @@ const promises = require('bluebird');
  * Module dependencies, required for this module
  * @ignore
  */
-const TwyrBaseModule = require('./../TwyrBaseModule').TwyrBaseModule;
+const TwyrBaseModule = require('./../TwyrBaseModule').TwyrBaseModule,
+	TwyrMiddlewareError = require('./TwyrMiddlewareError').TwyrMiddlewareError;
 
 class TwyrBaseMiddleware extends TwyrBaseModule {
 	constructor(module, loader) {
 		super(module, loader);
+		this._addDependencies('ApiService', 'CacheService', 'ConfigurationService', 'DatabaseService', 'LoggerService');
 
 		const TwyrMiddlewareLoader = require('./TwyrMiddlewareLoader').TwyrMiddlewareLoader;
 		const actualLoader = loader || promises.promisifyAll(new TwyrMiddlewareLoader(this), {
@@ -42,18 +44,40 @@ class TwyrBaseMiddleware extends TwyrBaseModule {
 			const superStartAsync = promises.promisify(super.start.bind(this));
 			return superStartAsync(dependencies);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrMiddlewareError) throw err;
+
+			const error = new TwyrMiddlewareError(`${this.name}::start: Super Start Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			return promises.all([status, this._setupJSONAPIMappersAsync()]);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrMiddlewareError) throw err;
+
+			const error = new TwyrMiddlewareError(`${this.name}::start: Setup JSON API Mapper Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			return promises.all([status[0], this._registerApisAsync()]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrMiddlewareError) throw err;
+
+			const error = new TwyrMiddlewareError(`${this.name}::start: Register API Error`, err);
+			throw error;
 		})
 		.then((status) => {
 			if(callback) callback(null, status[0]);
 			return null;
 		})
-		.catch((startErr) => {
-			if(callback) callback(startErr);
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrMiddlewareError))
+				error = new TwyrMiddlewareError(`${this.name}::start: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -63,18 +87,40 @@ class TwyrBaseMiddleware extends TwyrBaseModule {
 			const superStopAsync = promises.promisify(super.stop.bind(this));
 			return superStopAsync();
 		})
+		.catch((err) => {
+			if(err instanceof TwyrMiddlewareError) throw err;
+
+			const error = new TwyrMiddlewareError(`${this.name}::stop: Super Stop Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			return promises.all([status, this._deregisterApisAsync()]);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrMiddlewareError) throw err;
+
+			const error = new TwyrMiddlewareError(`${this.name}::stop: De-register API Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			return promises.all([status[0], this._deleteJSONAPIMappersAsync()]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrMiddlewareError) throw err;
+
+			const error = new TwyrMiddlewareError(`${this.name}::stop: Remove JSON API Mapper Error`, err);
+			throw error;
 		})
 		.then((status) => {
 			if(callback) callback(null, status[0]);
 			return null;
 		})
-		.catch((stopErr) => {
-			if(callback) callback(stopErr);
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrMiddlewareError))
+				error = new TwyrMiddlewareError(`${this.name}::stop: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -120,7 +166,11 @@ class TwyrBaseMiddleware extends TwyrBaseModule {
 			if(callback) callback(null, true);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrMiddlewareError))
+				error = new TwyrMiddlewareError(`${this.name}::_setupJSONAPIMappers: Setup JSON API Mapper Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -135,7 +185,11 @@ class TwyrBaseMiddleware extends TwyrBaseModule {
 			if(callback) callback(null, true);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrMiddlewareError))
+				error = new TwyrMiddlewareError(`${this.name}::_deleteJSONAPIMappers: Delete JSON API Mapper Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -148,7 +202,6 @@ class TwyrBaseMiddleware extends TwyrBaseModule {
 	}
 
 	get basePath() { return __dirname; }
-	get dependencies() { return ['ApiService', 'CacheService', 'ConfigurationService', 'DatabaseService', 'LoggerService']; }
 }
 
 exports.TwyrBaseMiddleware = TwyrBaseMiddleware;

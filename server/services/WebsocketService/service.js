@@ -20,12 +20,12 @@ const promises = require('bluebird');
  * Module dependencies, required for this module
  * @ignore
  */
-const TwyrBaseError = require('./../../TwyrBaseError').TwyrBaseError,
-	TwyrBaseService = require('./../TwyrBaseService').TwyrBaseService;
+const TwyrBaseService = require('./../TwyrBaseService').TwyrBaseService;
 
 class WebsocketService extends TwyrBaseService {
 	constructor(module) {
 		super(module);
+		this._addDependencies('AuditService', 'AuthService', 'ConfigurationService', 'CacheService', 'DatabaseService', 'ExpressService', 'LocalizationService', 'LoggerService');
 	}
 
 	start(dependencies, callback) {
@@ -103,8 +103,10 @@ class WebsocketService extends TwyrBaseService {
 
 		this._dummyAsync()
 		.then(() => {
-			const thisConfig = JSON.parse(JSON.stringify(this.$config));
-			return this._reconfigureAsync(thisConfig);
+			return this._teardownPrimusAsync();
+		})
+		.then(() => {
+			return this._setupPrimusAsync();
 		})
 		.then(() => {
 			if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_dependencyReconfigure: ${dependency.name}`);
@@ -121,15 +123,11 @@ class WebsocketService extends TwyrBaseService {
 
 		const cookieParser = require('cookie-parser'),
 			device = require('express-device'),
-			onFinished = require('on-finished'),
 			session = require('express-session'),
-			statusCodes = require('http').STATUS_CODES,
 			url = require('url'),
 			uuid = require('uuid');
 
 		const SessionStore = require(`connect-${this.$config.session.store.media}`)(session);
-		const loggerSrvc = this.$dependencies.LoggerService;
-
 		const _sessionStore = new SessionStore({
 			'client': this.$dependencies.CacheService,
 			'prefix': this.$config.session.store.prefix,
@@ -149,6 +147,11 @@ class WebsocketService extends TwyrBaseService {
 				return uuid.v4().toString().replace(/-/g, '');
 			}
 		});
+
+		const setupRequestResponseForAudit = (request, response, next) => {
+			request.twyrId = uuid.v4().toString();
+			next();
+		};
 
 		const tenantSetter = (request, response, next) => {
 			const cacheSrvc = this.$dependencies.CacheService,
@@ -204,9 +207,10 @@ class WebsocketService extends TwyrBaseService {
 		this.$websocketServer.use('cookieParser', _cookieParser, undefined, 0);
 		this.$websocketServer.use('session', _session, undefined, 1);
 		this.$websocketServer.use('device', device.capture(), undefined, 2);
-		this.$websocketServer.use('tenantSetter', tenantSetter, undefined, 3);
-		this.$websocketServer.use('passportInit', this.$dependencies.AuthService.initialize(), undefined, 4);
-		this.$websocketServer.use('passportSession', this.$dependencies.AuthService.session(), undefined, 5);
+		this.$websocketServer.use('auditStuff', setupRequestResponseForAudit, 3);
+		this.$websocketServer.use('tenantSetter', tenantSetter, undefined, 4);
+		this.$websocketServer.use('passportInit', this.$dependencies.AuthService.initialize(), undefined, 5);
+		this.$websocketServer.use('passportSession', this.$dependencies.AuthService.session(), undefined, 6);
 
 		// Step 3: Authorization hook
 		this.$websocketServer.authorize(this._authorizeWebsocketConnection.bind(this));
@@ -265,18 +269,24 @@ class WebsocketService extends TwyrBaseService {
 	}
 
 	_websocketServerConnection(spark) {
-		const loggerSrvc = this.$dependencies.LoggerService;
-		const username = spark.request.user ? [spark.request.user.first_name, spark.request.user.last_name].join(' ') : 'Anonymous';
-		if((process.env.NODE_ENV || 'development') === 'development') loggerSrvc.debug(`Websocket Connection for user`, username);
+		const username = spark.request.user ? `${spark.request.user.first_name} ${spark.request.user.last_name}` : 'Anonymous';
+
+		if((process.env.NODE_ENV || 'development') === 'development') {
+			const loggerSrvc = this.$dependencies.LoggerService;
+			loggerSrvc.debug(`Websocket Connection for user`, username);
+		}
 
 		this.emit('websocket-connect', spark);
 		spark.write({ 'channel': 'display-status-message', 'data': `Realtime Data connection established for User: ${username}` });
 	}
 
 	_websocketServerDisconnection(spark) {
-		const loggerSrvc = this.$dependencies.LoggerService;
-		const username = spark.request.user ? [spark.request.user.first_name, spark.request.user.last_name].join(' ') : 'Anonymous';
-		if((process.env.NODE_ENV || 'development') === 'development') loggerSrvc.debug(`Websocket Disconnected for user`, username);
+		if((process.env.NODE_ENV || 'development') === 'development') {
+			const loggerSrvc = this.$dependencies.LoggerService;
+			const username = spark.request.user ? `${spark.request.user.first_name} ${spark.request.user.last_name}` : 'Anonymous';
+
+			loggerSrvc.debug(`Websocket Disconnected for user`, username);
+		}
 
 		this.emit('websocket-disconnect', spark);
 		spark.leaveAll();
@@ -285,7 +295,6 @@ class WebsocketService extends TwyrBaseService {
 
 	get Interface() { return this.$websocketServer; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['AuditService', 'AuthService', 'ConfigurationService', 'CacheService', 'DatabaseService', 'ExpressService', 'LoggerService']; }
 }
 
 exports.service = WebsocketService;

@@ -20,7 +20,12 @@ const promises = require('bluebird');
  * Module dependencies, required for this module
  * @ignore
  */
-const EventEmitter = require('events');
+const EventEmitter = require('events'),
+	TwyrBaseComponent = require('./components/TwyrBaseComponent').TwyrBaseComponent,
+	TwyrBaseError = require('./TwyrBaseError').TwyrBaseError,
+	TwyrBaseMiddleware = require('./middlewares/TwyrBaseMiddleware').TwyrBaseMiddleware,
+	TwyrBaseService = require('./services/TwyrBaseService').TwyrBaseService,
+	TwyrBaseTemplate = require('./templates/TwyrBaseTemplate').TwyrBaseTemplate;
 
 class TwyrModuleLoader extends EventEmitter {
 	constructor(module) {
@@ -40,51 +45,82 @@ class TwyrModuleLoader extends EventEmitter {
 	}
 
 	load(configSrvc, basePath, callback) {
-		Object.defineProperty(this, '$basePath', {
-			'__proto__': null,
-			'value': basePath
-		});
-
 		const finalStatus = [];
 
 		this._dummyAsync()
 		.then(() => {
+			Object.defineProperty(this, '$basePath', {
+				'__proto__': null,
+				'value': basePath
+			});
+
+			if(!this.$locale) {
+				Object.defineProperty(this, '$locale', {
+					'__proto__': null,
+					'value': this.$module ? this.$module.locale : 'en'
+				});
+			}
+
 			return this._loadUtilitiesAsync(configSrvc);
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::load: Load Utilities Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			finalStatus.push(status);
 			return this._loadServicesAsync(configSrvc);
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::load: Load Services Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			finalStatus.push(status);
 			return this._loadMiddleWaresAsync(configSrvc || this.$module.$services.ConfigurationService.Interface);
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::load: Load Middlewares Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			finalStatus.push(status);
 			return this._loadComponentsAsync(configSrvc || this.$module.$services.ConfigurationService.Interface);
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
-			return this._loadTemplatesAsync(configSrvc || this.$module.$services.ConfigurationService.Interface);
+			const error = new TwyrBaseError(`${this.name}::load: Load Components Error`, err);
+			throw error;
 		})
 		.then((status) => {
-			if(!status) throw status;
+			finalStatus.push(status);
+			return this._loadTemplatesAsync(configSrvc || this.$module.$services.ConfigurationService.Interface);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::load: Load Templates Error`, err);
+			throw error;
+		})
+		.then((status) => {
 			finalStatus.push(status);
 
 			if(callback) callback(null, this._filterStatus(finalStatus));
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.$module.name}::load error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::load: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -95,34 +131,54 @@ class TwyrModuleLoader extends EventEmitter {
 		.then(() => {
 			return this._initializeServicesAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::initialize: Initialize Services Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			finalStatus.push(status);
 			return this._initializeMiddleWaresAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::initialize: Initialize Middlewares Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			finalStatus.push(status);
 			return this._initializeComponentsAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
-			return this._initializeTemplatesAsync();
+			const error = new TwyrBaseError(`${this.name}::initialize: Initialize Components Error`, err);
+			throw error;
 		})
 		.then((status) => {
-			if(!status) throw status;
+			finalStatus.push(status);
+			return this._initializeTemplatesAsync();
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::initialize: Initialize Templates Error`, err);
+			throw error;
+		})
+		.then((status) => {
 			finalStatus.push(status);
 
 			if(callback) callback(null, this._filterStatus(finalStatus));
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.$module.name}::initialize error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::initialize: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -133,34 +189,54 @@ class TwyrModuleLoader extends EventEmitter {
 		.then(() => {
 			return this._startServicesAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
-			return this._startMiddleWaresAsync();
+			const error = new TwyrBaseError(`${this.name}::start: Start Services Error`, err);
+			throw error;
 		})
 		.then((status) => {
-			if(!status) throw status;
 			finalStatus.push(status);
+			return this._startMiddlewaresAsync();
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::start: Start Middlewares Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			finalStatus.push(status);
 			return this._startComponentsAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
-			return this._startTemplatesAsync();
+			const error = new TwyrBaseError(`${this.name}::start: Start Components Error`, err);
+			throw error;
 		})
 		.then((status) => {
-			if(!status) throw status;
+			finalStatus.push(status);
+			return this._startTemplatesAsync();
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::start: Start Templates Error`, err);
+			throw error;
+		})
+		.then((status) => {
 			finalStatus.push(status);
 
 			if(callback) callback(null, this._filterStatus(finalStatus));
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.$module.name}::start error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::start: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -171,34 +247,54 @@ class TwyrModuleLoader extends EventEmitter {
 		.then(() => {
 			return this._stopTemplatesAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::stop: Stop Templates Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			finalStatus.push(status);
 			return this._stopComponentsAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
-			return this._stopMiddleWaresAsync();
+			const error = new TwyrBaseError(`${this.name}::stop: Stop Components Error`, err);
+			throw error;
 		})
 		.then((status) => {
-			if(!status) throw status;
 			finalStatus.push(status);
+			return this._stopMiddlewaresAsync();
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::stop: Stop Middlewares Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			finalStatus.push(status);
 			return this._stopServicesAsync();
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::stop: Stop Services Error`, err);
+			throw error;
+		})
 		.then((status) => {
-			if(!status) throw status;
 			finalStatus.push(status);
 
 			if(callback) callback(null, this._filterStatus(finalStatus));
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.$module.name}::stop error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::stop: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -209,34 +305,54 @@ class TwyrModuleLoader extends EventEmitter {
 		.then(() => {
 			return this._uninitializeTemplatesAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::uninitialize: Uninitialize Templates Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			finalStatus.push(status);
 			return this._uninitializeComponentsAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
-			return this._uninitializeMiddleWaresAsync();
+			const error = new TwyrBaseError(`${this.name}::uninitialize: Uninitialize Components Error`, err);
+			throw error;
 		})
 		.then((status) => {
-			if(!status) throw status;
 			finalStatus.push(status);
+			return this._uninitializeMiddlewaresAsync();
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::uninitialize: Uninitialize Middlewares Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			finalStatus.push(status);
 			return this._uninitializeServicesAsync();
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::uninitialize: Uninitialize Services Error`, err);
+			throw error;
+		})
 		.then((status) => {
-			if(!status) throw status;
 			finalStatus.push(status);
 
 			if(callback) callback(null, this._filterStatus(finalStatus));
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.$module.name}::uninitialize error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::uninitialize: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -247,40 +363,64 @@ class TwyrModuleLoader extends EventEmitter {
 		.then(() => {
 			return this._unloadTemplatesAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::unload: Unload Templates Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			finalStatus.push(status);
 			return this._unloadComponentsAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
-			return this._unloadMiddleWaresAsync();
+			const error = new TwyrBaseError(`${this.name}::unload: Unload Components Error`, err);
+			throw error;
 		})
 		.then((status) => {
-			if(!status) throw status;
 			finalStatus.push(status);
+			return this._unloadMiddlewaresAsync();
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::unload: Unload Middlewares Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			finalStatus.push(status);
 			return this._unloadServicesAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
-			return this._unloadUtilitiesAsync();
+			const error = new TwyrBaseError(`${this.name}::unload: Unload Services Error`, err);
+			throw error;
 		})
 		.then((status) => {
-			if(!status) throw status;
+			finalStatus.push(status);
+			return this._unloadUtilitiesAsync();
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::unload: Unload Utilities Error`, err);
+			throw error;
+		})
+		.then((status) => {
 			finalStatus.push(status);
 
 			if(callback) callback(null, this._filterStatus(finalStatus));
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.$module.name}::unload error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::unload: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -297,6 +437,12 @@ class TwyrModuleLoader extends EventEmitter {
 
 			const path = require('path');
 			return this._findFilesAsync(path.join(this.$basePath, this.$module.$config.utilities.path), 'utility.js');
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_loadUtilities: Find Files Error`, err);
+			throw error;
 		})
 		.then((definedUtilities) => {
 			for(const definedUtility of definedUtilities) {
@@ -315,13 +461,15 @@ class TwyrModuleLoader extends EventEmitter {
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_loadUtilities: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'utilities', 'status': error });
 		});
 	}
 
 	_loadServices(configSrvc, callback) {
-		let actualConfigSrvc = configSrvc;
-
 		this._dummyAsync()
 		.then(() => {
 			if(!this.$module.$services) this.$module.$services = {};
@@ -334,40 +482,53 @@ class TwyrModuleLoader extends EventEmitter {
 			const path = require('path');
 			return this._findFilesAsync(path.join(this.$basePath, this.$module.$config.services.path), 'service.js');
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_loadServices: Find Files Error`, err);
+			throw error;
+		})
 		.then((definedServices) => {
 			const configSrvcResolution = [];
-			if(!actualConfigSrvc) {
+			if(!configSrvc) {
 				for(const definedService of definedServices) {
-					// Check validity of the definition...
 					const Service = require(definedService).service;
 					if(!Service) continue;
 
-					if(!Service.prototype.load || !Service.prototype.initialize || !Service.prototype.start || !Service.prototype.stop || !Service.prototype.uninitialize || !Service.prototype.unload)
-						continue;
+					// Construct the Service...
+					configSrvc = new Service(this.$module);
+					configSrvc.$dependants = [];
 
-					if(!Service.prototype.name || !Service.prototype.dependencies)
-						continue;
+					// Check to see valid typeof
+					if(!(configSrvc instanceof TwyrBaseService))
+						throw new TwyrBaseError(`${definedService} does not contain a valid TwyrBaseService definition`);
 
-					if(Service.prototype.name !== 'ConfigurationService')
+					if(configSrvc.name !== 'ConfigurationService') {
+						configSrvc = undefined;
 						continue;
-
-					// Ok... valid definition. Construct the service
-					actualConfigSrvc = new Service(this.$module);
-					actualConfigSrvc.$dependants = [];
+					}
 
 					// Store the promisified object...
-					this.$module.$services[actualConfigSrvc.name] = promises.promisifyAll(actualConfigSrvc, {
+					this.$module.$services.ConfigurationService = promises.promisifyAll(configSrvc, {
 						'filter': () => {
 							return true;
 						}
 					});
+
+					break;
 				}
 
-				if(actualConfigSrvc) configSrvcResolution.push(actualConfigSrvc.loadAsync(null));
+				if(configSrvc) configSrvcResolution.push(this.$module.$services.ConfigurationService.loadAsync(null));
 			}
 
 			configSrvcResolution.push(definedServices);
 			return promises.all(configSrvcResolution);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_loadServices: Load Configuration Service Error`, err);
+			throw error;
 		})
 		.then((results) => {
 			const definedServices = results.pop(),
@@ -379,18 +540,16 @@ class TwyrModuleLoader extends EventEmitter {
 				const Service = require(definedService).service;
 				if(!Service) continue;
 
-				if(!Service.prototype.load || !Service.prototype.initialize || !Service.prototype.start || !Service.prototype.stop || !Service.prototype.uninitialize || !Service.prototype.unload)
-					continue;
-
-				if(!Service.prototype.name || !Service.prototype.dependencies)
-					continue;
-
-				if(Service.prototype.name === 'ConfigurationService')
-					continue;
-
-				// Ok... valid definition. Construct the service
+				// Construct the service
 				const serviceInstance = new Service(this.$module);
 				serviceInstance.$dependants = [];
+
+				// Check to see valid typeof
+				if(!(serviceInstance instanceof TwyrBaseService))
+					throw new TwyrBaseError(`${definedService} does not contain a valid TwyrBaseService definition`);
+
+				if(serviceInstance.name === 'ConfigurationService')
+					continue;
 
 				// Store the promisified object...
 				this.$module.$services[serviceInstance.name] = promises.promisifyAll(serviceInstance, {
@@ -400,22 +559,32 @@ class TwyrModuleLoader extends EventEmitter {
 				});
 
 				serviceNames.push(serviceInstance.name);
-				promiseResolutions.push(serviceInstance.loadAsync(actualConfigSrvc));
+				promiseResolutions.push(this.$module.$services[serviceInstance.name].loadAsync(this.$module.$services.ConfigurationService));
 			}
 
 			if(results.length) {
 				serviceNames.unshift('ConfigurationService');
-				promiseResolutions.unshift(results[0]);
+				promiseResolutions.unshift(results.pop());
 			}
 
 			return this._processPromisesAsync(serviceNames, promiseResolutions);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_loadServices: Load non-Configuration Services Error`, err);
+			throw error;
 		})
 		.then((result) => {
 			if(callback) callback(null, { 'type': 'services', 'status': result });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'services', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_loadServices: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'services', 'status': error });
 		});
 	}
 
@@ -432,23 +601,26 @@ class TwyrModuleLoader extends EventEmitter {
 			const path = require('path');
 			return this._findFilesAsync(path.join(this.$basePath, this.$module.$config.middlewares.path), 'middleware.js');
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_loadMiddlewares: Find Files Error`, err);
+			throw error;
+		})
 		.then((definedMiddlewares) => {
 			const middlewareNames = [],
 				promiseResolutions = [];
 
 			for(const definedMiddleware of definedMiddlewares) {
-				// Check validity of the definition...
 				const Middleware = require(definedMiddleware).middleware;
 				if(!Middleware) continue;
 
-				if(!Middleware.prototype.load || !Middleware.prototype.initialize || !Middleware.prototype.start || !Middleware.prototype.stop || !Middleware.prototype.uninitialize || !Middleware.prototype.unload)
-					continue;
-
-				if(!Middleware.prototype.name || !Middleware.prototype.dependencies)
-					continue;
-
-				// Ok... valid definition. Construct the middleware
+				// Construct the middleware
 				const middlewareInstance = new Middleware(this.$module);
+
+				// Check to see valid typeof
+				if(!(middlewareInstance instanceof TwyrBaseMiddleware))
+					throw new TwyrBaseError(`${definedMiddleware} does not contain a valid TwyrBaseMiddleware definition`);
 
 				// Store the promisified object...
 				this.$module.$middlewares[middlewareInstance.name] = promises.promisifyAll(middlewareInstance, {
@@ -458,17 +630,27 @@ class TwyrModuleLoader extends EventEmitter {
 				});
 
 				middlewareNames.push(middlewareInstance.name);
-				promiseResolutions.push(middlewareInstance.loadAsync(configSrvc));
+				promiseResolutions.push(this.$module.$middlewares[middlewareInstance.name].loadAsync(configSrvc));
 			}
 
 			return this._processPromisesAsync(middlewareNames, promiseResolutions);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_loadMiddlewares: Load Middlewares Error`, err);
+			throw error;
 		})
 		.then((result) => {
 			if(callback) callback(null, { 'type': 'middlewares', 'status': result });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'middlewares', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_loadMiddlewares: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'middlewares', 'status': error });
 		});
 	}
 
@@ -485,23 +667,26 @@ class TwyrModuleLoader extends EventEmitter {
 			const path = require('path');
 			return this._findFilesAsync(path.join(this.$basePath, this.$module.$config.components.path), 'component.js');
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_loadComponents: Find Files Error`, err);
+			throw error;
+		})
 		.then((definedComponents) => {
 			const componentNames = [],
 				promiseResolutions = [];
 
 			for(const definedComponent of definedComponents) {
-				// Check validity of the definition...
 				const Component = require(definedComponent).component;
 				if(!Component) continue;
 
-				if(!Component.prototype.load || !Component.prototype.initialize || !Component.prototype.start || !Component.prototype.stop || !Component.prototype.uninitialize || !Component.prototype.unload)
-					continue;
-
-				if(!Component.prototype.name || !Component.prototype.dependencies)
-					continue;
-
-				// Ok... valid definition. Construct the component
+				// Construct the Component
 				const componentInstance = new Component(this.$module);
+
+				// Check to see valid typeof
+				if(!(componentInstance instanceof TwyrBaseComponent))
+					throw new TwyrBaseError(`${definedComponent} does not contain a valid TwyrBaseComponent definition`);
 
 				// Store the promisified object...
 				this.$module.$components[componentInstance.name] = promises.promisifyAll(componentInstance, {
@@ -511,17 +696,27 @@ class TwyrModuleLoader extends EventEmitter {
 				});
 
 				componentNames.push(componentInstance.name);
-				promiseResolutions.push(componentInstance.loadAsync(configSrvc));
+				promiseResolutions.push(this.$module.$components[componentInstance.name].loadAsync(configSrvc));
 			}
 
 			return this._processPromisesAsync(componentNames, promiseResolutions);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_loadComponents: Load Component Error`, err);
+			throw error;
 		})
 		.then((result) => {
 			if(callback) callback(null, { 'type': 'components', 'status': result });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'components', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_loadComponents: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'components', 'status': error });
 		});
 	}
 
@@ -538,23 +733,26 @@ class TwyrModuleLoader extends EventEmitter {
 			const path = require('path');
 			return this._findFilesAsync(path.join(this.$basePath, this.$module.$config.templates.path), 'template.js');
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_loadTemplates: Find Files Error`, err);
+			throw error;
+		})
 		.then((definedTemplates) => {
 			const promiseResolutions = [],
 				templateNames = [];
 
 			for(const definedTemplate of definedTemplates) {
-				// Check validity of the definition...
 				const Template = require(definedTemplate).template;
 				if(!Template) continue;
 
-				if(!Template.prototype.load || !Template.prototype.initialize || !Template.prototype.start || !Template.prototype.stop || !Template.prototype.uninitialize || !Template.prototype.unload)
-					continue;
-
-				if(!Template.prototype.name || !Template.prototype.dependencies)
-					continue;
-
-				// Ok... valid definition. Construct the template
+				// Construct the Template
 				const templateInstance = new Template(this.$module);
+
+				// Check to see valid typeof
+				if(!(templateInstance instanceof TwyrBaseTemplate))
+					throw new TwyrBaseError(`${definedTemplate} does not contain a valid TwyrBaseTemplate definition`);
 
 				// Store the promisified object...
 				this.$module.$templates[templateInstance.name] = promises.promisifyAll(templateInstance, {
@@ -564,17 +762,27 @@ class TwyrModuleLoader extends EventEmitter {
 				});
 
 				templateNames.push(templateInstance.name);
-				promiseResolutions.push(templateInstance.loadAsync(configSrvc));
+				promiseResolutions.push(this.$module.$templates[templateInstance.name].loadAsync(configSrvc));
 			}
 
 			return this._processPromisesAsync(templateNames, promiseResolutions);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_loadTemplates: Load Template Error`, err);
+			throw error;
 		})
 		.then((result) => {
 			if(callback) callback(null, { 'type': 'templates', 'status': result });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'templates', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_loadTemplates: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'templates', 'status': error });
 		});
 	}
 
@@ -591,12 +799,22 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(serviceNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_initializeServices: Initialize Services Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, { 'type': 'services', 'status': status });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'services', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_initializeServices: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'services', 'status': error });
 		});
 	}
 
@@ -613,12 +831,22 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(middlewareNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_initializeMiddlewares: Initialize Middlewares Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, { 'type': 'middlewares', 'status': status });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'middlewares', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_initializeMiddlewares: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'middlewares', 'status': error });
 		});
 	}
 
@@ -635,12 +863,22 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(componentNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_initializeComponents: Initialize Components Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, { 'type': 'components', 'status': status });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'components', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_initializeComponents: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'components', 'status': error });
 		});
 	}
 
@@ -657,12 +895,22 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(templateNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_initializeTemplates: Initialize Templates Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, { 'type': 'templates', 'status': status });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'templates', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_initializeTemplates: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'templates', 'status': error });
 		});
 	}
 
@@ -710,17 +958,33 @@ class TwyrModuleLoader extends EventEmitter {
 				});
 			}, [serviceNames]);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_startServices: Start Services Error`, err);
+			throw error;
+		})
 		// Wait for the services to start...
 		.then((startStatuses) => {
 			const serviceNames = startStatuses.shift();
 			return this._processPromisesAsync(serviceNames, startStatuses);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_startServices: Process Start Error`, err);
+			throw error;
 		})
 		.then((result) => {
 			if(callback) callback(null, { 'type': 'services', 'status': result });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'services', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_startServices: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'services', 'status': error });
 		});
 	}
 
@@ -766,15 +1030,25 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return thisService.startAsync(thisServiceDependencies);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_startSingleService: Service Start Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, status);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_startSingleService: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
-	_startMiddleWares(callback) {
+	_startMiddlewares(callback) {
 		this._dummyAsync()
 		.then(() => {
 			const promiseResolutions = [];
@@ -787,13 +1061,23 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(middlewareNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_startMiddlewares: Start Middlewares Error`, err);
+			throw error;
+		})
 		// Wait for the middlewares to start...
 		.then((result) => {
 			if(callback) callback(null, { 'type': 'middlewares', 'status': result });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'middlewares', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_startMiddlewares: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'middlewares', 'status': error });
 		});
 	}
 
@@ -836,11 +1120,21 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return thisMiddleware.startAsync(thisMiddlewareDependencies);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_startSingleMiddleware: Start Middleware Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, status);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_startSingleMiddleware: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -857,13 +1151,23 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(componentNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_startComponents: Start Components Error`, err);
+			throw error;
+		})
 		// Wait for the components to start...
 		.then((result) => {
 			if(callback) callback(null, { 'type': 'components', 'status': result });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'components', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_startComponents: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'components', 'status': error });
 		});
 	}
 
@@ -906,11 +1210,21 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return thisComponent.startAsync(thisComponentDependencies);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_startSingleComponent: Start Component Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, status);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_startSingleComponent: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -927,13 +1241,23 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(templateNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_startTemplates: Start Templates Error`, err);
+			throw error;
+		})
 		// Wait for the templates to start...
 		.then((result) => {
 			if(callback) callback(null, { 'type': 'templates', 'status': result });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'templates', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_startTemplates: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'templates', 'status': error });
 		});
 	}
 
@@ -976,11 +1300,21 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return thisTemplate.startAsync(thisTemplateDependencies);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_startSingleTemplate: Start Template Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, status);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_startSingleTemplate: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -1028,17 +1362,33 @@ class TwyrModuleLoader extends EventEmitter {
 				});
 			}, [serviceNames]);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_stopServices: Stop Services Error`, err);
+			throw error;
+		})
 		// Wait for the services to stop...
 		.then((stopStatuses) => {
 			const serviceNames = stopStatuses.shift();
 			return this._processPromisesAsync(serviceNames, stopStatuses);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_stopServices: Process Stop Error`, err);
+			throw error;
 		})
 		.then((result) => {
 			if(callback) callback(null, { 'type': 'services', 'status': result });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'services', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_stopServices: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'services', 'status': error });
 		});
 	}
 
@@ -1048,15 +1398,25 @@ class TwyrModuleLoader extends EventEmitter {
 			const thisService = this.$module.$services[serviceName];
 			return thisService.stopAsync();
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_stopSingleService: Service Stop Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, status);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_stopSingleService: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
-	_stopMiddleWares(callback) {
+	_stopMiddlewares(callback) {
 		this._dummyAsync()
 		.then(() => {
 			const middlewareNames = Object.keys(this.$module.$middlewares || {}),
@@ -1068,12 +1428,22 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(middlewareNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_stopMiddlewares: Stop Middlewares Error`, err);
+			throw error;
+		})
 		.then((result) => {
 			if(callback) callback(null, { 'type': 'middlewares', 'status': result });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'middlewares', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_stopMiddlewares: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'middlewares', 'status': error });
 		});
 	}
 
@@ -1083,11 +1453,21 @@ class TwyrModuleLoader extends EventEmitter {
 			const thisMiddleware = this.$module.$middlewares[middlewareName];
 			return thisMiddleware.stopAsync();
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_stopSingleMiddleware: Stop Middleware Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, status);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_stopSingleMiddleware: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -1104,13 +1484,23 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(componentNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_stopComponents: Stop Components Error`, err);
+			throw error;
+		})
 		// Wait for the components to stop...
 		.then((result) => {
 			if(callback) callback(null, { 'type': 'components', 'status': result });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'components', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_stopComponents: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'components', 'status': error });
 		});
 	}
 
@@ -1120,11 +1510,21 @@ class TwyrModuleLoader extends EventEmitter {
 			const thisComponent = this.$module.$components[componentName];
 			return thisComponent.stopAsync();
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_stopSingleComponent: Stop Component Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, status);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_stopSingleComponent: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -1141,13 +1541,23 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(templateNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_stopTemplates: Stop Templates Error`, err);
+			throw error;
+		})
 		// Wait for the templates to stop...
 		.then((result) => {
 			if(callback) callback(null, { 'type': 'templates', 'status': result });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'templates', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_stopTemplates: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'templates', 'status': error });
 		});
 	}
 
@@ -1157,11 +1567,21 @@ class TwyrModuleLoader extends EventEmitter {
 			const thisTemplate = this.$module.$templates[templateName];
 			return thisTemplate.stopAsync();
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_stopSingleTemplate: Stop Template Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, status);
 		})
 		.catch((err) => {
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_stopSingleTemplate: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -1178,16 +1598,26 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(serviceNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_uninitializeServices: Uninitialize Services Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, { 'type': 'services', 'status': status });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'services', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_uninitializeServices: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'services', 'status': error });
 		});
 	}
 
-	_uninitializeMiddleWares(callback) {
+	_uninitializeMiddlewares(callback) {
 		this._dummyAsync()
 		.then(() => {
 			const middlewareNames = Object.keys(this.$module.$middlewares || {}),
@@ -1200,12 +1630,22 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(middlewareNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_uninitializeMiddlewares: Uninitialize Middlewares Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, { 'type': 'middlewares', 'status': status });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'middlewares', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_uninitializeMiddlewares: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'middlewares', 'status': error });
 		});
 	}
 
@@ -1222,12 +1662,22 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(componentNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_uninitializeComponents: Uninitialize Components Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, { 'type': 'components', 'status': status });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'components', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_uninitializeComponents: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'components', 'status': error });
 		});
 	}
 
@@ -1244,12 +1694,22 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(templateNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_uninitializeTemplates: Uninitialize Templates Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, { 'type': 'templates', 'status': status });
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'templates', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_uninitializeTemplates: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'templates', 'status': error });
 		});
 	}
 
@@ -1277,6 +1737,12 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(serviceNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_unloadServices: Unload Services Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			const serviceNames = Object.keys(this.$module.$services || {});
 			serviceNames.forEach((serviceName) => {
@@ -1287,7 +1753,11 @@ class TwyrModuleLoader extends EventEmitter {
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'services', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_unloadServices: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'services', 'status': error });
 		})
 		.finally(() => {
 			delete this.$module.$services;
@@ -1295,7 +1765,7 @@ class TwyrModuleLoader extends EventEmitter {
 		});
 	}
 
-	_unloadMiddleWares(callback) {
+	_unloadMiddlewares(callback) {
 		this._dummyAsync()
 		.then(() => {
 			const middlewareNames = Object.keys(this.$module.$middlewares || {}),
@@ -1308,6 +1778,12 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(middlewareNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_unloadMiddlewares: Unload Middlewares Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			const middlewareNames = Object.keys(this.$module.$middlewares || {});
 			middlewareNames.forEach((middlewareName) => {
@@ -1318,7 +1794,11 @@ class TwyrModuleLoader extends EventEmitter {
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'middlewares', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_unloadMiddlewares: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'middlewares', 'status': error });
 		})
 		.finally(() => {
 			delete this.$module.$middlewares;
@@ -1339,6 +1819,12 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(componentNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_unloadComponents: Unload Components Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			const componentNames = Object.keys(this.$module.$components || {});
 			componentNames.forEach((componentName) => {
@@ -1349,7 +1835,11 @@ class TwyrModuleLoader extends EventEmitter {
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'components', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_unloadComponents: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'components', 'status': error });
 		})
 		.finally(() => {
 			delete this.$module.$components;
@@ -1370,6 +1860,12 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return this._processPromisesAsync(templateNames, promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_unloadTemplates: Unload Templates Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			const templateNames = Object.keys(this.$module.$templates || {});
 			templateNames.forEach((templateName) => {
@@ -1380,7 +1876,11 @@ class TwyrModuleLoader extends EventEmitter {
 			return null;
 		})
 		.catch((err) => {
-			if(callback) callback(err, { 'type': 'templates', 'status': err });
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_unloadTemplates: Execute Callback Error`, err);
+
+			if(callback) callback(error, { 'type': 'templates', 'status': error });
 		})
 		.finally(() => {
 			delete this.$module.$templates;
@@ -1397,21 +1897,31 @@ class TwyrModuleLoader extends EventEmitter {
 
 		this._dummyAsync()
 		.then(() => {
-			return this._existsAsync(rootDir);
-		})
-		.then((exists) => {
-			if(!exists) throw new Error(`${rootDir} doesn't exist`);
 			return this._existsAsync(path.join(rootDir, filename));
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_findFiles: Check File Exists Error`, err);
+			throw error;
 		})
 		.then((exists) => {
 			if(exists) {
 				fileList.push(path.join(rootDir, filename));
-				throw new Error(`File found in ${rootDir}`);
+				return null;
 			}
 
 			return filesystem.readdirAsync(rootDir);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_findFiles: Read Folder Error`, err);
+			throw error;
+		})
 		.then((rootDirObjects) => {
+			if(!rootDirObjects) return null;
+
 			const promiseResolutions = [];
 
 			for(const rootDirObject of rootDirObjects)
@@ -1420,7 +1930,15 @@ class TwyrModuleLoader extends EventEmitter {
 			promiseResolutions.push(rootDirObjects);
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_findFiles: Folder Stat Error`, err);
+			throw error;
+		})
 		.then((results) => {
+			if(!results) return null;
+
 			const rootDirObjects = results.pop(),
 				rootDirStats = results;
 
@@ -1439,15 +1957,24 @@ class TwyrModuleLoader extends EventEmitter {
 
 			return promises.all(promiseResolutions);
 		})
-		.then((subFolderFiles) => {
-			fileList = [].concat(...subFolderFiles);
-			if(callback) callback(null, fileList);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::_findFiles: Find in Sub-folders Error`, err);
+			throw error;
+		})
+		.then((subFolderFiles) => {
+			if(subFolderFiles) fileList = [].concat(...subFolderFiles);
+
+			if(callback) callback(null, fileList);
 			return null;
 		})
-		.catch(() => {
-//			if((process.env.NODE_ENV || 'development') === 'development') console.error(err);
-			if(callback) callback(null, fileList);
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_findFiles: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -1526,6 +2053,9 @@ class TwyrModuleLoader extends EventEmitter {
 	_dummy(callback) {
 		if(callback) callback(null, true);
 	}
+
+	get name() { return this.constructor.name; }
+	get basePath() { return __dirname; }
 }
 
 exports.TwyrModuleLoader = TwyrModuleLoader;

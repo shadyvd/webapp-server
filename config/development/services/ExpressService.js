@@ -27,7 +27,7 @@ exports.config = {
 	"cookieParser": {
 		"path": "/",
 		"domain": ".twyr.com",
-		"maxAge": 1813990472411,
+		"maxAge": 1814172241670,
 		"secure": false,
 		"httpOnly": false
 	},
@@ -36,6 +36,7 @@ exports.config = {
 	"templateEngine": "ejs",
 	"connectionTimeout": 30,
 	"subdomainMappings": {
+		"cloud-portal": "www",
 		"local-portal": "www"
 	},
 	"corsAllowedDomains": []

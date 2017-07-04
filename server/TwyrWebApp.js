@@ -33,21 +33,77 @@ class TwyrWebApp extends TwyrBaseModule {
 		this._loadConfig();
 	}
 
+	load(configSrvc, callback) {
+		this._dummyAsync()
+		.then(() => {
+			const osLocale = require('os-locale');
+			return osLocale();
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::load: Get OS Locale Error`, err);
+			throw error;
+		})
+		.then((locale) => {
+			Object.defineProperty(this, '$locale', {
+				'__proto__': null,
+				'value': locale
+			});
+
+			const superLoadAsync = promises.promisify(super.load.bind(this));
+			return superLoadAsync(configSrvc);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::load: Base Load Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			if(callback) callback(null, status);
+			return null;
+		})
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::load: Execute Callback Error`, err);
+
+			if(callback) callback(error);
+		});
+	}
+
 	start(dependencies, callback) {
 		this._dummyAsync()
 		.then(() => {
 			const superStartAsync = promises.promisify(super.start.bind(this));
 			return superStartAsync(dependencies);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::start: Base Start Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			return promises.all([status, this._addRoutesAsync()]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::start: Add Routes Error`, err);
+			throw error;
 		})
 		.then((status) => {
 			if(callback) callback(null, status[0]);
 			return null;
 		})
-		.catch((setupRouterErr) => {
-			if(callback) callback(setupRouterErr);
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::start: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -57,15 +113,34 @@ class TwyrWebApp extends TwyrBaseModule {
 			const superSubmoduleReconfigureAsync = promises.promisify(super._subModuleReconfigure.bind(this));
 			return superSubmoduleReconfigureAsync(subModule);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_subModuleReconfigure: Base _subModuleReconfigure Error`, err);
+			throw error;
+		})
 		.then((status) => {
-			return promises.all([status, this._addRoutesAsync()]);
+			if(subModule.name !== 'ExpressService')
+				return [status];
+			else
+				return promises.all([status, this._addRoutesAsync()]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_subModuleReconfigure: Add Routes Error`, err);
+			throw error;
 		})
 		.then((status) => {
 			if(callback) callback(null, status[0]);
 			return null;
 		})
-		.catch((setupRouterErr) => {
-			if(callback) callback(setupRouterErr);
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_subModuleReconfigure: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -74,6 +149,12 @@ class TwyrWebApp extends TwyrBaseModule {
 		.then(() => {
 			const superSubmoduleStatechangeAsync = promises.promisify(super._subModuleStateChange.bind(this));
 			return superSubmoduleStatechangeAsync(subModule, state);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_subModuleStateChange: Base _subModuleStateChange Error`, err);
+			throw error;
 		})
 		.then((status) => {
 			if(subModule.name !== 'ExpressService')
@@ -84,18 +165,27 @@ class TwyrWebApp extends TwyrBaseModule {
 
 			return promises.all([status, this._addRoutesAsync()]);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_subModuleStateChange: Add Routes Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			if(callback) callback(null, status[0]);
 			return null;
 		})
-		.catch((setupRouterErr) => {
-			if(callback) callback(setupRouterErr);
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_subModuleReconfigure: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
 	_addRoutes(callback) {
-		const expressApp = this.$services.ExpressService.Interface,
-			loggerSrvc = this.$services.LoggerService.Interface;
+		const expressApp = this.$services.ExpressService.Interface;
 
 		this._dummyAsync()
 		.then(() => {
@@ -145,7 +235,7 @@ class TwyrWebApp extends TwyrBaseModule {
 					return cacheSrvc.getAsync(`twyr!webapp!${request.device.type}!user!${request.user.id}!${request.tenant}!indexTemplate`);
 				})
 				.catch((err) => {
-					const error = new TwyrBaseError(`Error retrieving cached index page for user ${request.user.id}`, err);
+					const error = new TwyrBaseError(`${this.name}::Error retrieving cached index page for user ${request.user.id}`, err);
 					throw error;
 				})
 				.then((indexTemplate) => {
@@ -157,7 +247,7 @@ class TwyrWebApp extends TwyrBaseModule {
 				.catch((err) => {
 					if(err instanceof TwyrBaseError) throw err;
 
-					const error = new TwyrBaseError(`Error generating client side assets for user ${request.user.id}`, err);
+					const error = new TwyrBaseError(`${this.name}::Error generating client side assets for user ${request.user.id}`, err);
 					throw error;
 				})
 				.then((results) => {
@@ -167,7 +257,7 @@ class TwyrWebApp extends TwyrBaseModule {
 				.catch((err) => {
 					if(err instanceof TwyrBaseError) throw err;
 
-					const error = new TwyrBaseError(`Error sending response for user ${request.user.id}`, err);
+					const error = new TwyrBaseError(`${this.name}::Error sending response for user ${request.user.id}`, err);
 					throw error;
 				})
 				.then((results) => {
@@ -189,7 +279,7 @@ class TwyrWebApp extends TwyrBaseModule {
 				.catch((err) => {
 					let error = err;
 					if(!(error instanceof TwyrBaseError))
-						error = new TwyrBaseError(`Error caching twyr!webapp!${request.device.type}!user!${request.user.id}!${request.tenant}!indexTemplate`, err);
+						error = new TwyrBaseError(`${this.name}::Error caching twyr!webapp!${request.device.type}!user!${request.user.id}!${request.tenant}!indexTemplate`, err);
 
 					next(error);
 				});
@@ -211,7 +301,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrBaseError))
-				error = new TwyrBaseError(`Error adding routes`, err);
+				error = new TwyrBaseError(`${this.name}::_addRoutes: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -235,7 +325,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
 
-			const error = new TwyrBaseError(`Error generating Ember assets`, err);
+			const error = new TwyrBaseError(`${this.name}::_getClientsideAssets: Error Generating Ember assets`, err);
 			throw error;
 		})
 		.then((clientAssets) => {
@@ -259,7 +349,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
 
-			const error = new TwyrBaseError(`Error generating sub-component Ember assets`, err);
+			const error = new TwyrBaseError(`${this.name}::_getClientsideAssets: Error generating sub-component Ember assets`, err);
 			throw error;
 		})
 		.then((componentAssets) => {
@@ -282,7 +372,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
 
-			const error = new TwyrBaseError(`Error selecting a template for rendering`, err);
+			const error = new TwyrBaseError(`${this.name}::Error selecting a template for rendering`, err);
 			throw error;
 		})
 		.then((results) => {
@@ -294,7 +384,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
 
-			const error = new TwyrBaseError(`Error rendering the template`, err);
+			const error = new TwyrBaseError(`${this.name}::Error rendering the template`, err);
 			throw error;
 		})
 		.then((renderedTemplate) => {
@@ -303,7 +393,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrBaseError))
-				error = new TwyrBaseError(`Error returning the rendered template`, err);
+				error = new TwyrBaseError(`${this.name}::_getClientsideAssets: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -321,7 +411,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
 
-			const error = new TwyrBaseError(`Error reading the baseRouteHandler`, err);
+			const error = new TwyrBaseError(`${this.name}::Error reading the baseRouteHandler`, err);
 			throw error;
 		})
 		.then((baseRoute) => {
@@ -331,7 +421,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrBaseError))
-				error = new TwyrBaseError(`Error returning the baseRouteHandler`, err);
+				error = new TwyrBaseError(`${this.name}::_getemberRouterHandlers: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -355,7 +445,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
 
-			const error = new TwyrBaseError(`Error reading the base Controllers`, err);
+			const error = new TwyrBaseError(`${this.name}::Error reading the base Controllers`, err);
 			throw error;
 		})
 		.then((baseControllers) => {
@@ -365,7 +455,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrBaseError))
-				error = new TwyrBaseError(`Error returning the base Controllers`, err);
+				error = new TwyrBaseError(`${this.name}::_getEmberControllers: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -383,7 +473,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
 
-			const error = new TwyrBaseError(`Error reading the base Model`, err);
+			const error = new TwyrBaseError(`${this.name}::Error reading the base Model`, err);
 			throw error;
 		})
 		.then((baseModel) => {
@@ -393,7 +483,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrBaseError))
-				error = new TwyrBaseError(`Error returning the base Model`, err);
+				error = new TwyrBaseError(`${this.name}::_getEmberModels: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -411,7 +501,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
 
-			const error = new TwyrBaseError(`Error reading the base Component`, err);
+			const error = new TwyrBaseError(`${this.name}::Error reading the base Component`, err);
 			throw error;
 		})
 		.then((baseComponent) => {
@@ -421,7 +511,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrBaseError))
-				error = new TwyrBaseError(`Error returning the base Component`, err);
+				error = new TwyrBaseError(`${this.name}::_getEmberComponents: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -439,7 +529,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
 
-			const error = new TwyrBaseError(`Error reading the base Component HTML`, err);
+			const error = new TwyrBaseError(`${this.name}::Error reading the base Component HTML`, err);
 			throw error;
 		})
 		.then((baseComponentHTML) => {
@@ -449,7 +539,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrBaseError))
-				error = new TwyrBaseError(`Error returning the base Component HTML`, err);
+				error = new TwyrBaseError(`${this.name}::_getEmberComponentHTMLs: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -467,7 +557,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
 
-			const error = new TwyrBaseError(`Error reading the base Service`, err);
+			const error = new TwyrBaseError(`${this.name}::Error reading the base Service`, err);
 			throw error;
 		})
 		.then((baseService) => {
@@ -477,7 +567,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrBaseError))
-				error = new TwyrBaseError(`Error returning the base Service`, err);
+				error = new TwyrBaseError(`${this.name}::_getEmberServices: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -495,7 +585,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
 
-			const error = new TwyrBaseError(`Error reading the base Helper`, err);
+			const error = new TwyrBaseError(`${this.name}::Error reading the base Helper`, err);
 			throw error;
 		})
 		.then((baseHelper) => {
@@ -505,7 +595,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrBaseError))
-				error = new TwyrBaseError(`Error returning the base Helper`, err);
+				error = new TwyrBaseError(`${this.name}::_getEmberHelpers: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
@@ -524,7 +614,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
 
-			const error = new TwyrBaseError(`Error selecting default template for this tenant from the database`, err);
+			const error = new TwyrBaseError(`${this.name}::Error selecting default template for this tenant from the database`, err);
 			throw error;
 		})
 		.then((results) => {
@@ -540,7 +630,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
 
-			const error = new TwyrBaseError(`Error selecting default template for www tenant from the database`, err);
+			const error = new TwyrBaseError(`${this.name}::Error selecting default template for www tenant from the database`, err);
 			throw error;
 		})
 		.then((moduleTemplates) => {
@@ -553,7 +643,7 @@ class TwyrWebApp extends TwyrBaseModule {
 		.catch((err) => {
 			let error = err;
 			if(!(error instanceof TwyrBaseError))
-				error = new TwyrBaseError(`Error returning the selected template`, err);
+				error = new TwyrBaseError(`${this.name}::_selectTemplate: Execute Callback Error`, err);
 
 			if(callback) callback(error);
 		});
