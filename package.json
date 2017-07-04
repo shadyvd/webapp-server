@@ -28,6 +28,7 @@
 		"node": ">=8.0"
 	},
 	"dependencies": {
+		"active-handles": "^1.1.0",
 		"ascoltatori": "*",
 		"bcrypt-nodejs": "*",
 		"bluebird": "*",
@@ -61,7 +62,7 @@
 		"fs-extra": "*",
 		"html-entities": "*",
 		"html-minifier": "*",
-		"i18n": "*",
+		"i18n": "^0.8.3",
 		"inflection": "*",
 		"jsonapi-mapper": "^1.0.0-beta.12",
 		"jsonapi-query-parser": "*",

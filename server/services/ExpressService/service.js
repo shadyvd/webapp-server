@@ -374,15 +374,23 @@ class ExpressService extends TwyrBaseService {
 		})
 		.then((sslFiles) => {
 			const protocol = require(this.$config.protocol || 'http');
+			let server = undefined;
 
 			if((this.$config.protocol || 'http') === 'http')
-				this.$server = promises.promisifyAll(protocol.createServer(webServer));
+				server = protocol.createServer(webServer);
 			else {
 				this.$config.ssl.key = sslFiles[0];
 				this.$config.ssl.cert = sslFiles[1];
 
-				this.$server = promises.promisifyAll(protocol.createServer(this.$config.ssl, webServer));
+				server = protocol.createServer(this.$config.ssl, webServer);
 			}
+
+			// Add utility to force-stop server
+			serverDestroy(server);
+			this.$server = promises.promisifyAll(server);
+
+			// Miscellaneous...
+			this.$express.$server = this.$server;
 
 			// Start listening...
 			return this.$server.listenAsync(this.$config.port[this.$module.name] || 9090, undefined, undefined);
@@ -390,12 +398,6 @@ class ExpressService extends TwyrBaseService {
 		.then(() => {
 			this.$server.on('connection', this._serverConnection.bind(this));
 			this.$server.on('error', this._serverError.bind(this));
-
-			// Miscellaneous...
-			this.$express.$server = this.$server;
-
-			serverDestroy(this.$server);
-			this.$server.destroyAsync = promises.promisify(this.$server.destroy);
 
 			if(callback) callback(null, true);
 		})

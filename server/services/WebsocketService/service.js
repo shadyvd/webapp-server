@@ -95,9 +95,7 @@ class WebsocketService extends TwyrBaseService {
 
 	_dependencyReconfigure(dependency, callback) {
 		if(dependency.name !== 'ExpressService') {
-			if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_dependencyReconfigure: ${dependency.name}`);
-
-			if(callback) callback(null, true);
+			super._dependencyReconfigure(dependency, callback);
 			return;
 		}
 
@@ -109,8 +107,8 @@ class WebsocketService extends TwyrBaseService {
 			return this._setupPrimusAsync();
 		})
 		.then(() => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_dependencyReconfigure: ${dependency.name}`);
 			if(callback) callback(null, true);
+			return null;
 		})
 		.catch((err) => {
 			if(callback) callback(err);

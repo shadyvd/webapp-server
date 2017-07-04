@@ -65,7 +65,7 @@ class TwyrMiddlewareLoader extends TwyrModuleLoader {
 		})
 		.then((status) => {
 			finalStatus.push(status);
-			return this._loadMiddleWaresAsync(configSrvc || this.$module.$services.ConfigurationService.Interface);
+			return this._loadMiddlewaresAsync(configSrvc || this.$module.$services.ConfigurationService.Interface);
 		})
 		.catch((err) => {
 			if(err instanceof TwyrMiddlewareError) throw err;
@@ -103,7 +103,7 @@ class TwyrMiddlewareLoader extends TwyrModuleLoader {
 		})
 		.then((status) => {
 			finalStatus.push(status);
-			return this._initializeMiddleWaresAsync();
+			return this._initializeMiddlewaresAsync();
 		})
 		.catch((err) => {
 			if(err instanceof TwyrMiddlewareError) throw err;

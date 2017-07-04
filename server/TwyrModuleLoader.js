@@ -81,7 +81,7 @@ class TwyrModuleLoader extends EventEmitter {
 		})
 		.then((status) => {
 			finalStatus.push(status);
-			return this._loadMiddleWaresAsync(configSrvc || this.$module.$services.ConfigurationService.Interface);
+			return this._loadMiddlewaresAsync(configSrvc || this.$module.$services.ConfigurationService.Interface);
 		})
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
@@ -139,7 +139,7 @@ class TwyrModuleLoader extends EventEmitter {
 		})
 		.then((status) => {
 			finalStatus.push(status);
-			return this._initializeMiddleWaresAsync();
+			return this._initializeMiddlewaresAsync();
 		})
 		.catch((err) => {
 			if(err instanceof TwyrBaseError) throw err;
@@ -588,7 +588,7 @@ class TwyrModuleLoader extends EventEmitter {
 		});
 	}
 
-	_loadMiddleWares(configSrvc, callback) {
+	_loadMiddlewares(configSrvc, callback) {
 		this._dummyAsync()
 		.then(() => {
 			if(!this.$module.$middlewares) this.$module.$middlewares = {};
@@ -818,7 +818,7 @@ class TwyrModuleLoader extends EventEmitter {
 		});
 	}
 
-	_initializeMiddleWares(callback) {
+	_initializeMiddlewares(callback) {
 		this._dummyAsync()
 		.then(() => {
 			const middlewareNames = Object.keys(this.$module.$middlewares || {}),
