@@ -20,7 +20,7 @@ const promises = require('bluebird');
  * Module dependencies, required for this module
  * @ignore
  */
-const TwyrBaseError = require('./../../TwyrBaseError').TwyrBaseError,
+const TwyrServiceError = require('./../TwyrServiceError').TwyrServiceError,
 	TwyrServiceLoader = require('./../TwyrServiceLoader').TwyrServiceLoader;
 
 class ConfigurationServiceLoader extends TwyrServiceLoader {
@@ -30,65 +30,53 @@ class ConfigurationServiceLoader extends TwyrServiceLoader {
 
 	load(configSrvc, basePath, callback) {
 		let loadStatus = null;
-
 		this._dummyAsync()
 		.then(() => {
 			const superLoadAsync = promises.promisify(super.load.bind(this));
 			return superLoadAsync(configSrvc, basePath);
 		})
 		.catch((err) => {
-			if(err instanceof TwyrBaseError) throw err;
+			if(err instanceof TwyrServiceError) throw err;
 
-			const error = new TwyrBaseError(`${this.name}::load: Error`, err);
+			const error = new TwyrServiceError(`${this.name}::load: Super Load Error`, err);
 			throw error;
 		})
 		.then((status) => {
 			loadStatus = status;
 			return this.$module.initializeAsync();
 		})
-		.catch((err) => {
-			if(err instanceof TwyrBaseError) throw err;
-
-			this.initStatus = false;
-			this.initErr = new TwyrBaseError(`${this.name}::initialize: Error`, err);
-		})
 		.then((initStatus) => {
-			if(!!this.initErr) {
-				this.initStatus = initStatus;
-				this.initErr = null;
-			}
-
-			return this.$module.startAsync(null);
-		})
-		.catch((err) => {
-			if(err instanceof TwyrBaseError) throw err;
-
-			this.startStatus = false;
-			this.startErr = new TwyrBaseError(`${this.name}::start: Error`, err);
-		})
-		.then((startStatus) => {
-			if(!!this.startErr) {
-				this.startStatus = startStatus;
-				this.startErr = null;
-			}
+			this.initStatus = initStatus;
+			this.initErr = null;
 
 			return null;
+		})
+		.catch((initErr) => {
+			this.initStatus = false;
+			this.initErr = new TwyrServiceError(`${this.name}::load: Initialize Error`, initErr);
 		})
 		.then(() => {
+			if(this.initErr) return null;
+			return this.$module.startAsync(null);
+		})
+		.then((startStatus) => {
+			this.startStatus = startStatus;
+			this.startErr = null;
+
+			return startStatus;
+		})
+		.catch((startErr) => {
+			this.startStatus = false;
+			this.startErr = new TwyrServiceError(`${this.name}::load: Start Error`, startErr);
+		})
+		.finally(() => {
 			if(callback) callback(null, loadStatus);
 			return null;
-		})
-		.catch((err) => {
-			let error = err;
-			if(!(error instanceof TwyrBaseError))
-				error = new TwyrBaseError(`${this.name}::load: Execute Callback Error`, err);
-
-			if(callback) callback(error);
 		});
 	}
 
 	initialize(callback) {
-		if(this.initStatus !== undefined) {
+		if(!!this.initStatus) {
 			if(callback) callback(this.initErr, this.initStatus);
 			return;
 		}
@@ -97,7 +85,7 @@ class ConfigurationServiceLoader extends TwyrServiceLoader {
 	}
 
 	start(callback) {
-		if(this.startStatus !== undefined) {
+		if(!!this.startStatus) {
 			if(callback) callback(this.startErr, this.startStatus);
 			return;
 		}
