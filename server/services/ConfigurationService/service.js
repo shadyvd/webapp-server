@@ -38,28 +38,29 @@ class ConfigurationService extends TwyrBaseService {
 	}
 
 	load(configSrvc, callback) {
-		const path = require('path');
+		this._dummyAsync()
+		.then(() => {
+			const path = require('path');
 
-		const env = (process.env.NODE_ENV || 'development').toLowerCase(),
-			rootPath = path.dirname(require.main.filename);
+			const env = (process.env.NODE_ENV || 'development').toLowerCase(),
+				rootPath = path.dirname(require.main.filename);
 
-		const configPath = path.join(rootPath, 'config', `${path.relative(rootPath, this.basePath).replace('server', env)}.js`);
+			const configPath = path.join(rootPath, 'config', `${path.relative(rootPath, this.basePath).replace('server', env)}.js`);
 
-		delete require.cache[configPath];
-		this.$config = require(configPath).config;
+			delete require.cache[configPath];
+			this.$config = require(configPath).config;
 
-		this.on('new-config', this._processConfigChange.bind(this));
-		this.on('update-config', this._processConfigChange.bind(this));
-		this.on('delete-config', this._processConfigChange.bind(this));
+			this.on('new-config', this._processConfigChange.bind(this));
+			this.on('update-config', this._processConfigChange.bind(this));
+			this.on('delete-config', this._processConfigChange.bind(this));
 
-		this.on('update-state', this._processStateChange.bind(this));
-
-		super.load(configSrvc, (err, status) => {
-			if(err) {
-				if(callback) callback(err);
-				return;
-			}
-
+			this.on('update-state', this._processStateChange.bind(this));
+		})
+		.then(() => {
+			const superLoadAsync = promises.promisify(super.load.bind(this));
+			return superLoadAsync(configSrvc);
+		})
+		.then((status) => {
 			if(!this.$prioritizedSubServices) {
 				this.$prioritizedSubServices = [].concat(Object.keys(this.$services));
 				this.$prioritizedSubServices.sort((left, right) => {
@@ -67,7 +68,14 @@ class ConfigurationService extends TwyrBaseService {
 				});
 			}
 
+			return status;
+		})
+		.then((status) => {
 			if(callback) callback(null, status);
+			return null;
+		})
+		.catch((setupErr) => {
+			if(callback) callback(setupErr);
 		});
 	}
 

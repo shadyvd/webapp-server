@@ -20,7 +20,8 @@ const promises = require('bluebird');
  * Module dependencies, required for this module
  * @ignore
  */
-const TwyrServiceLoader = require('./../TwyrServiceLoader').TwyrServiceLoader;
+const TwyrBaseError = require('./../../TwyrBaseError').TwyrBaseError,
+	TwyrServiceLoader = require('./../TwyrServiceLoader').TwyrServiceLoader;
 
 class ConfigurationServiceLoader extends TwyrServiceLoader {
 	constructor(module) {
@@ -29,42 +30,60 @@ class ConfigurationServiceLoader extends TwyrServiceLoader {
 
 	load(configSrvc, basePath, callback) {
 		let loadStatus = null;
+
 		this._dummyAsync()
 		.then(() => {
 			const superLoadAsync = promises.promisify(super.load.bind(this));
 			return superLoadAsync(configSrvc, basePath);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::load: Error`, err);
+			throw error;
+		})
 		.then((status) => {
 			loadStatus = status;
 			return this.$module.initializeAsync();
 		})
-		.then((initStatus) => {
-			this.initStatus = initStatus;
-			this.initErr = null;
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
-			return null;
-		})
-		.catch((initErr) => {
 			this.initStatus = false;
-			this.initErr = initErr;
+			this.initErr = new TwyrBaseError(`${this.name}::initialize: Error`, err);
 		})
-		.then(() => {
-			if(this.initErr) return null;
+		.then((initStatus) => {
+			if(!!this.initErr) {
+				this.initStatus = initStatus;
+				this.initErr = null;
+			}
+
 			return this.$module.startAsync(null);
 		})
-		.then((startStatus) => {
-			this.startStatus = startStatus;
-			this.startErr = null;
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
-			return startStatus;
-		})
-		.catch((startErr) => {
 			this.startStatus = false;
-			this.startErr = startErr;
+			this.startErr = new TwyrBaseError(`${this.name}::start: Error`, err);
 		})
-		.finally(() => {
+		.then((startStatus) => {
+			if(!!this.startErr) {
+				this.startStatus = startStatus;
+				this.startErr = null;
+			}
+
+			return null;
+		})
+		.then(() => {
 			if(callback) callback(null, loadStatus);
 			return null;
+		})
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::load: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 

@@ -72,7 +72,7 @@
 		"method-override": "*",
 		"moment": "*",
 		"morgan": "*",
-		"node-mocks-http": "^1.6.3",
+		"node-mocks-http": "^1.6.4",
 		"node-print": "*",
 		"node-uuid": "*",
 		"nodemailer": "*",

@@ -21,18 +21,18 @@
  * @ignore
  */
 const TwyrBaseError = require('./../TwyrBaseError').TwyrBaseError;
-const _errors = Symbol();
 
 class TwyrComponentError extends TwyrBaseError {
 	constructor(message, inner) {
 		super(message, inner);
-		this[_errors] = [];
 	}
 }
 
+const _errors = Symbol();
 class TwyrJSONAPIError extends TwyrComponentError {
 	constructor(message, inner) {
 		super(message, inner);
+		this[_errors] = [];
 	}
 
 	addErrorObject(errorObject) {

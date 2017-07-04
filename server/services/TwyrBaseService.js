@@ -27,7 +27,6 @@ class TwyrBaseService extends TwyrBaseModule {
 		super(module, loader);
 
 		const TwyrSrvcLoader = require('./TwyrServiceLoader').TwyrServiceLoader;
-
 		const actualLoader = loader || promises.promisifyAll(new TwyrSrvcLoader(this), {
 			'filter': () => {
 				return true;

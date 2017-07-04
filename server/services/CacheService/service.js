@@ -25,6 +25,7 @@ const TwyrBaseService = require('./../TwyrBaseService').TwyrBaseService;
 class CacheService extends TwyrBaseService {
 	constructor(module) {
 		super(module);
+		this._addDependencies('ConfigurationService', 'LocalizationService', 'LoggerService');
 	}
 
 	start(dependencies, callback) {
@@ -146,7 +147,6 @@ class CacheService extends TwyrBaseService {
 
 	get Interface() { return this.$cache; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['ConfigurationService', 'LocalizationService', 'LoggerService']; }
 }
 
 exports.service = CacheService;

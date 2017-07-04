@@ -20,8 +20,15 @@ const promises = require('bluebird');
  * Module dependencies, required for this module
  * @ignore
  */
+
 const EventEmitter = require('events'),
 	TwyrBaseError = require('./TwyrBaseError').TwyrBaseError;
+
+/**
+ * Private variables exposed only using getter / setter
+ * @ignore
+ */
+const _dependencies = Symbol();
 
 class TwyrBaseModule extends EventEmitter {
 	constructor(module, loader) {
@@ -29,6 +36,7 @@ class TwyrBaseModule extends EventEmitter {
 
 		this.$module = module;
 		this.$loader = loader;
+		this[_dependencies] = [];
 
 		if(!loader) {
 			const TwyrModuleLoader = require('./TwyrModuleLoader').TwyrModuleLoader;
@@ -45,14 +53,23 @@ class TwyrBaseModule extends EventEmitter {
 	load(configSrvc, callback) {
 		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name} Load`);
 
-		const promiseResolutions = [];
+		this._dummyAsync()
+		.then(() => {
+			const promiseResolutions = [];
 
-		if(configSrvc)
-			promiseResolutions.push(configSrvc.loadConfigAsync(this));
-		else
-			promiseResolutions.push(null);
+			if(configSrvc)
+				promiseResolutions.push(configSrvc.loadConfigAsync(this));
+			else
+				promiseResolutions.push(null);
 
-		promises.all(promiseResolutions)
+			return promises.all(promiseResolutions);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::load: Load Configuration Error`, err);
+			throw error;
+		})
 		.then((moduleConfig) => {
 			this.$config = configSrvc ? moduleConfig[0].configuration : this.$config;
 			this.$enabled = configSrvc ? moduleConfig[0].state : true;
@@ -66,69 +83,112 @@ class TwyrBaseModule extends EventEmitter {
 
 			return this.$loader.loadAsync(configSrvc, this.basePath);
 		})
-		.then((status) => {
-			if(!status) throw status;
-			if(callback) callback(null, status);
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::load: Loader Load Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			if(callback) callback(null, status);
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.name} Load Error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::load: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
 	initialize(callback) {
 		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name} Initialize`);
 
-		this.$loader.initializeAsync()
-		.then((status) => {
-			if(!status) throw status;
-			if(callback) callback(null, status);
+		this._dummyAsync()
+		.then(() => {
+			return this.$loader.initializeAsync();
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::initialize: Loader Initialize Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			if(callback) callback(null, status);
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.name} Initialize Error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::initialize: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
 	start(dependencies, callback) {
 		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name} Start`);
-
 		const actualState = this.$enabled;
 
-		this.$enabled = true;
-		this.$dependencies = dependencies;
+		this._dummyAsync()
+		.then(() => {
+			this.$enabled = true;
+			this.$dependencies = dependencies;
 
-		this.$loader.startAsync()
+			return this.$loader.startAsync();
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::start: Loader Start Error`, err);
+			throw error;
+		})
 		.then((status) => {
-			if(!status) throw status;
 			return promises.all([status, this._changeStateAsync(actualState)]);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::start: Change State Error`, err);
+			throw error;
 		})
 		.then((status) => {
 			if(callback) callback(null, status[0]);
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.name} Start Error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::start: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
 	stop(callback) {
 		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name} Stop`);
 
-		this.$loader.stopAsync()
-		.then((status) => {
-			if(!status) throw status;
-			if(callback) callback(null, status);
+		this._dummyAsync()
+		.then(() => {
+			return this.$loader.stopAsync();
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::stop: Loader Stop Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			if(callback) callback(null, status);
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.name} Stop Error: ${err.stack}`);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::stop: Execute Callback Error`, err);
+
 			if(callback) callback(err);
 		});
 	}
@@ -136,15 +196,25 @@ class TwyrBaseModule extends EventEmitter {
 	uninitialize(callback) {
 		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name} Uninitialize`);
 
-		this.$loader.uninitializeAsync()
-		.then((status) => {
-			if(!status) throw status;
-			if(callback) callback(null, status);
+		this._dummyAsync()
+		.then(() => {
+			return this.$loader.uninitializeAsync();
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::uninitialize: Loader Uninitialize Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			if(callback) callback(null, status);
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.name} Uninitialize Error: ${err.stack}`);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::uninitialize: Execute Callback Error`, err);
+
 			if(callback) callback(err);
 		});
 	}
@@ -152,15 +222,25 @@ class TwyrBaseModule extends EventEmitter {
 	unload(callback) {
 		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name} Unload`);
 
-		this.$loader.unloadAsync()
-		.then((status) => {
-			if(!status) throw status;
-			if(callback) callback(null, status);
+		this._dummyAsync()
+		.then(() => {
+			return this.$loader.unloadAsync();
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
 
+			const error = new TwyrBaseError(`${this.name}::unload: Loader Unload Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			if(callback) callback(null, status);
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.name} Unload Error: ${err.stack}`);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::unload: Execute Callback Error`, err);
+
 			if(callback) callback(err);
 		})
 		.finally(() => {
@@ -182,6 +262,12 @@ class TwyrBaseModule extends EventEmitter {
 				this.$config = deepmerge(this.$config, newConfig || {});
 
 			return this.$module._subModuleReconfigureAsync(this);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_reconfigure: Parent Submodule Reconfigure Error`, err);
+			throw error;
 		})
 		.then(() => {
 			const promiseResolutions = [];
@@ -212,6 +298,12 @@ class TwyrBaseModule extends EventEmitter {
 
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_reconfigure: Submodule Reconfigure Error`, err);
+			throw error;
+		})
 		.then(() => {
 			const promiseResolutions = [];
 
@@ -223,10 +315,21 @@ class TwyrBaseModule extends EventEmitter {
 
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_reconfigure: Dependant Reconfigure Error`, err);
+			throw error;
+		})
 		.then(() => {
 			if(callback) callback(null, true);
+			return null;
 		})
 		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_reconfigure: Execute Callback Error`, err);
+
 			if(callback) callback(err);
 		});
 	}
@@ -241,6 +344,12 @@ class TwyrBaseModule extends EventEmitter {
 		.then(() => {
 			this.$enabled = newState;
 			return this.$module._subModuleStateChangeAsync(this, newState);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_changeState: Parent Submodule Change State Error`, err);
+			throw error;
 		})
 		.then(() => {
 			const promiseResolutions = [];
@@ -271,6 +380,12 @@ class TwyrBaseModule extends EventEmitter {
 
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_changeState: Submodule Change State Error`, err);
+			throw error;
+		})
 		.then(() => {
 			const promiseResolutions = [];
 
@@ -282,64 +397,134 @@ class TwyrBaseModule extends EventEmitter {
 
 			return promises.all(promiseResolutions);
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_changeState: Dependant Change State Error`, err);
+			throw error;
+		})
 		.then(() => {
 			if(callback) callback(null, true);
+			return null;
 		})
 		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_changeState: Execute Callback Error`, err);
+
 			if(callback) callback(err);
 		});
 	}
 
 	_parentReconfigure(callback) {
 		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_parentReconfigure`);
-		if(callback) callback(null, true);
-	}
-
-	_dependencyReconfigure(dependency, callback) {
-		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_dependencyReconfigure: ${dependency.name}`);
-		if(callback) callback(null, true);
-	}
-
-	_subModuleReconfigure(subModule, callback) {
-		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_subModuleReconfigure: ${subModule.name}`);
-		if(callback) callback(null, true);
-	}
-
-	_parentStateChange(state, callback) {
-		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_parentStateChange: ${this.$module.name} is now ${(state ? 'enabled' : 'disabled')}`);
-		if(callback) callback(null, true);
-	}
-
-	_dependencyStateChange(dependency, state, callback) {
-		let allDependenciesEnabled = true;
-		if(state) {
-			this.dependencies.forEach((dependencyName) => {
-				allDependenciesEnabled = allDependenciesEnabled && !!this.$dependencies[dependencyName];
-			});
-		}
-
-		if(!allDependenciesEnabled) {
-			if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_dependencyStateChange: ${dependency.name} is now ${(state ? 'enabled' : 'disabled')}`);
-			if(callback) callback(null, true);
-			return;
-		}
 
 		this._dummyAsync()
 		.then(() => {
-			return this._changeStateAsync(state);
-		})
-		.then(() => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_dependencyStateChange: ${dependency.name} is now ${(state ? 'enabled' : 'disabled')}`);
-
 			if(callback) callback(null, true);
 			return null;
 		})
 		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_parentReconfigure: Execute Callback Error`, err);
+
+			if(callback) callback(err);
+		});
+	}
+
+	_dependencyReconfigure(dependency, callback) {
+		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_dependencyReconfigure: ${dependency.name}`);
+
+		this._dummyAsync()
+		.then(() => {
+			if(callback) callback(null, true);
+			return null;
+		})
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_dependencyReconfigure: Execute Callback Error`, err);
+
+			if(callback) callback(err);
+		});
+	}
+
+	_subModuleReconfigure(subModule, callback) {
+		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_subModuleReconfigure: ${subModule.name}`);
+
+		this._dummyAsync()
+		.then(() => {
+			if(callback) callback(null, true);
+			return null;
+		})
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_subModuleReconfigure: Execute Callback Error`, err);
+
+			if(callback) callback(err);
+		});
+	}
+
+	_parentStateChange(state, callback) {
+		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_parentStateChange: ${this.$module.name} is now ${(state ? 'enabled' : 'disabled')}`);
+
+		this._dummyAsync()
+		.then(() => {
+			if(callback) callback(null, true);
+			return null;
+		})
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_parentStateChange: Execute Callback Error`, err);
+
+			if(callback) callback(err);
+		});
+	}
+
+	_dependencyStateChange(dependency, state, callback) {
+		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_dependencyStateChange: ${dependency.name} is now ${(state ? 'enabled' : 'disabled')}`);
+
+		this._dummyAsync()
+		.then(() => {
+			let allDependenciesEnabled = true;
+			if(state) {
+				this.dependencies.forEach((dependencyName) => {
+					allDependenciesEnabled = allDependenciesEnabled && !!this.$dependencies[dependencyName];
+				});
+			}
+
+			if(!allDependenciesEnabled) {
+				if(callback) callback(null, true);
+				return null;
+			}
+
+			return this._changeStateAsync(state);
+		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_dependencyStateChange: Change State Error`, err);
+			throw error;
+		})
+		.then(() => {
+			if(callback) callback(null, true);
+			return null;
+		})
+		.catch((err) => {
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_dependencyStateChange: Execute Callback Error`, err);
+
 			if(callback) callback(err);
 		});
 	}
 
 	_subModuleStateChange(subModule, state, callback) {
+		if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_subModuleStateChange: ${subModule.name} is now ${(state ? 'enabled' : 'disabled')}`);
+
 		this._dummyAsync()
 		.then(() => {
 			let methodToCall = undefined;
@@ -369,30 +554,52 @@ class TwyrBaseModule extends EventEmitter {
 
 			return null;
 		})
+		.catch((err) => {
+			if(err instanceof TwyrBaseError) throw err;
+
+			const error = new TwyrBaseError(`${this.name}::_subModuleStateChange: stop/start Error`, err);
+			throw error;
+		})
 		.then(() => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.log(`${this.name}::_subModuleStateChange: ${subModule.name} is now ${(state ? 'enabled' : 'disabled')}`);
 			if(callback) callback(null, true);
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.name}::_subModuleStateChange:\nsubModule: ${subModule.name}\nstate: ${state}\nerror: ${err.stack}`);
+			let error = err;
+			if(!(error instanceof TwyrBaseError))
+				error = new TwyrBaseError(`${this.name}::_subModuleStateChange: Execute Callback Error`, err);
+
 			if(callback) callback(err);
 		});
+	}
+
+	_addDependencies() {
+		for(let dependencyList of arguments) {
+			if(typeof dependencyList === 'string')
+				dependencyList = dependencyList.split(',');
+
+			if(!Array.isArray(dependencyList))
+				throw new TwyrBaseError(`${this.name}::_addDependencies: dependencyList should be a string with comma-separated values, or an Array`);
+
+			dependencyList.forEach((dependency) => {
+				if(this[_dependencies].indexOf(dependency.trim()) >= 0)
+					return;
+
+				this[_dependencies].push(dependency.trim());
+			});
+		}
 	}
 
 	_exists(path, mode, callback) {
 		const filesystem = require('fs');
 
-		let actualCallback = callback,
-			actualMode = mode;
-
-		if(!actualCallback) {
-			actualCallback = actualMode;
-			actualMode = undefined;
+		if(!callback && typeof mode === 'function') {
+			callback = mode;
+			mode = undefined;
 		}
 
-		filesystem.access(path, actualMode || filesystem.constants.F_OK, (err) => {
-			if(actualCallback) actualCallback(null, !err);
+		filesystem.access(path, mode || filesystem.constants.F_OK, (err) => {
+			if(callback) callback(null, !err);
 		});
 	}
 
@@ -402,12 +609,12 @@ class TwyrBaseModule extends EventEmitter {
 
 	_handleUncaughtException(err) {
 		const uncaughtException = new TwyrBaseError(`${this.name} uncaught exception`, err);
-		console.error(uncaughtException);
+		console.error(uncaughtException.toString());
 	}
 
 	get name() { return this.constructor.name; }
 	get basePath() { return __dirname; }
-	get dependencies() { return []; }
+	get dependencies() { return this[_dependencies]; }
 }
 
 exports.TwyrBaseModule = TwyrBaseModule;

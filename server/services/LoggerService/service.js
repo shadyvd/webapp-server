@@ -25,6 +25,7 @@ const TwyrBaseService = require('./../TwyrBaseService').TwyrBaseService;
 class LoggerService extends TwyrBaseService {
 	constructor(module) {
 		super(module);
+		this._addDependencies('ConfigurationService');
 	}
 
 	start(dependencies, callback) {
@@ -189,7 +190,6 @@ class LoggerService extends TwyrBaseService {
 
 	get Interface() { return this.$winston; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['ConfigurationService']; }
 }
 
 exports.service = LoggerService;

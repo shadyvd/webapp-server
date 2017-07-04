@@ -27,6 +27,7 @@ const TwyrBaseComponent = require('./../TwyrBaseComponent').TwyrBaseComponent,
 class Sessions extends TwyrBaseComponent {
 	constructor(module) {
 		super(module);
+		this._addDependencies('ApiService', 'AuthService', 'ConfigurationService', 'ExpressService', 'LoggerService');
 	}
 
 	_addRoutes(callback) {
@@ -249,7 +250,6 @@ class Sessions extends TwyrBaseComponent {
 	}
 
 	get basePath() { return __dirname; }
-	get dependencies() { return ['ApiService', 'AuthService', 'ConfigurationService', 'ExpressService', 'LoggerService']; }
 }
 
 exports.component = Sessions;

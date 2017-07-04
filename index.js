@@ -170,11 +170,12 @@ if(cluster.isMaster) {
 			});
 
 			cluster.disconnectAsync()
+			.timeout(60000)
 			.then(() => {
 				console.log(`Twy'r Web Application Master: Disconnected workers. Exiting now...`);
 				return null;
 			})
-			.timeout(180000)
+			.timeout(60000)
 			.catch((err) => {
 				console.error(`Twy'r Web Application Master Error: ${err.stack}\n\n`);
 			})
@@ -201,6 +202,7 @@ if(cluster.isMaster) {
 				});
 
 				cluster.disconnectAsync()
+				.timeout(60000)
 				.then(() => {
 					console.log(`Twy'r Web Application Master: Disconnected workers. Exiting now...`);
 
@@ -208,7 +210,7 @@ if(cluster.isMaster) {
 					telnetServer.close();
 					return null;
 				})
-				.timeout(180000)
+				.timeout(60000)
 				.catch((err) => {
 					console.error(`Twy'r Web Application Master Error: ${err.stack}\n\n`);
 				})
@@ -237,37 +239,31 @@ else {
 
 		// Call load / initialize / start...
 		application.loadAsync(null)
-			.timeout(180000)
-			.then((status) => {
-				allStatuses.push(`Twy'r Web Application #${cluster.worker.id}::Load status: ${JSON.stringify(status, null, '\t')}\n\n`);
-				if(!status) throw status;
-
-				return application.initializeAsync();
-			})
-			.timeout(180000)
-			.then((status) => {
-				allStatuses.push(`Twy'r Web Application #${cluster.worker.id}::Initialize status: ${JSON.stringify(status, null, '\t')}\n\n`);
-				if(!status) throw status;
-
-				return application.startAsync(null);
-			})
-			.timeout(180000)
-			.then((status) => {
-				allStatuses.push(`Twy'r Web Application #${cluster.worker.id}::Start Status: ${JSON.stringify(status, null, '\t')}\n\n`);
-				if(!status) throw status;
-
-				return null;
-			})
-			.timeout(180000)
-			.catch((err) => {
-				if(env === 'development') console.error(`\n\nTwy'r Web Application #${cluster.worker.id}::Startup Error: ${err.stack}\n\n`);
-				cluster.worker.disconnect();
-			})
-			.finally(() => {
-				if(env === 'development') console.log(`\n\n${allStatuses.join('\n')}\n\n`);
-				process.send('worker-online');
-				return null;
-			});
+		.timeout(60000)
+		.then((status) => {
+			allStatuses.push(`Twy'r Web Application #${cluster.worker.id}::Load status: ${JSON.stringify(status, null, '\t')}\n\n`);
+			return application.initializeAsync();
+		})
+		.timeout(60000)
+		.then((status) => {
+			allStatuses.push(`Twy'r Web Application #${cluster.worker.id}::Initialize status: ${JSON.stringify(status, null, '\t')}\n\n`);
+			return application.startAsync(null);
+		})
+		.timeout(60000)
+		.then((status) => {
+			allStatuses.push(`Twy'r Web Application #${cluster.worker.id}::Start Status: ${JSON.stringify(status, null, '\t')}\n\n`);
+			return null;
+		})
+		.timeout(60000)
+		.catch((err) => {
+			if(env === 'development') console.error(`\n\nTwy'r Web Application #${cluster.worker.id}::Startup Error: ${err.toString()}\n\n`);
+			cluster.worker.disconnect();
+		})
+		.finally(() => {
+			if(env === 'development') console.log(`\n\n${allStatuses.join('\n')}\n\n`);
+			process.send('worker-online');
+			return null;
+		});
 	};
 
 	const shutdownFn = () => {
@@ -275,39 +271,33 @@ else {
 		if(!application) return;
 
 		application.stopAsync()
-			.timeout(180000)
-			.then((status) => {
-				allStatuses.push(`Twy'r Web Application #${cluster.worker.id}::Stop Status: ${JSON.stringify(status, null, '\t')}\n\n`);
-				if(!status) throw status;
-
-				return application.uninitializeAsync();
-			})
-			.timeout(180000)
-			.then((status) => {
-				allStatuses.push(`Twy'r Web Application #${cluster.worker.id}::Uninitialize Status: ${JSON.stringify(status, null, '\t')}\n\n`);
-				if(!status) throw status;
-
-				return application.unloadAsync();
-			})
-			.timeout(180000)
-			.then((status) => {
-				allStatuses.push(`Twy'r Web Application #${cluster.worker.id}::Unload Status: ${JSON.stringify(status, null, '\t')}\n\n`);
-				if(!status) throw status;
-
-				return null;
-			})
-			.timeout(180000)
-			.then(() => {
-				cluster.worker.disconnect();
-				return null;
-			})
-			.catch((err) => {
-				if(env === 'development') console.error(`\n\nTwy'r Web Application #${cluster.worker.id}::Shutdown Error: ${err.stack}\n\n`);
-			})
-			.finally(() => {
-				if(env === 'development') console.log(`\n\n${allStatuses.join('\n')}\n\n`);
-				return null;
-			});
+		.timeout(60000)
+		.then((status) => {
+			allStatuses.push(`Twy'r Web Application #${cluster.worker.id}::Stop Status: ${JSON.stringify(status, null, '\t')}\n\n`);
+			return application.uninitializeAsync();
+		})
+		.timeout(60000)
+		.then((status) => {
+			allStatuses.push(`Twy'r Web Application #${cluster.worker.id}::Uninitialize Status: ${JSON.stringify(status, null, '\t')}\n\n`);
+			return application.unloadAsync();
+		})
+		.timeout(60000)
+		.then((status) => {
+			allStatuses.push(`Twy'r Web Application #${cluster.worker.id}::Unload Status: ${JSON.stringify(status, null, '\t')}\n\n`);
+			return null;
+		})
+		.timeout(60000)
+		.then(() => {
+			cluster.worker.disconnect();
+			return null;
+		})
+		.catch((err) => {
+			console.error(`\n\nTwy'r Web Application #${cluster.worker.id}::Shutdown Error: ${err.stack}\n\n`);
+		})
+		.finally(() => {
+			if(env === 'development') console.log(`\n\n${allStatuses.join('\n')}\n\n`);
+			return null;
+		});
 	};
 
 	// Listen for messages from master, and shutdown when termination is received

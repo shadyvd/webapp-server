@@ -25,6 +25,7 @@ const TwyrBaseService = require('./../TwyrBaseService').TwyrBaseService;
 class WebsocketService extends TwyrBaseService {
 	constructor(module) {
 		super(module);
+		this._addDependencies('AuditService', 'AuthService', 'ConfigurationService', 'CacheService', 'DatabaseService', 'ExpressService', 'LocalizationService', 'LoggerService');
 	}
 
 	start(dependencies, callback) {
@@ -294,7 +295,6 @@ class WebsocketService extends TwyrBaseService {
 
 	get Interface() { return this.$websocketServer; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['AuditService', 'AuthService', 'ConfigurationService', 'CacheService', 'DatabaseService', 'ExpressService', 'LocalizationService', 'LoggerService']; }
 }
 
 exports.service = WebsocketService;

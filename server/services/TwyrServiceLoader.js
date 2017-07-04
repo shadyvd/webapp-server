@@ -20,7 +20,8 @@
  * Module dependencies, required for this module
  * @ignore
  */
-const TwyrModuleLoader = require('./../TwyrModuleLoader').TwyrModuleLoader;
+const TwyrModuleLoader = require('./../TwyrModuleLoader').TwyrModuleLoader,
+	TwyrServiceError = require('./TwyrServiceError').TwyrServiceError;
 
 class TwyrServiceLoader extends TwyrModuleLoader {
 	constructor(module) {
@@ -28,45 +29,52 @@ class TwyrServiceLoader extends TwyrModuleLoader {
 	}
 
 	load(configSrvc, basePath, callback) {
-		Object.defineProperty(this, '$basePath', {
-			'__proto__': null,
-			'value': basePath
-		});
-
-		if(!this.$locale) {
-			Object.defineProperty(this, '$locale', {
-				'__proto__': null,
-				'value': this.$module.$locale
-			});
-		}
-
 		const finalStatus = [];
+
 		this._dummyAsync()
 		.then(() => {
+			Object.defineProperty(this, '$basePath', {
+				'__proto__': null,
+				'value': basePath
+			});
+
+			if(!this.$locale) {
+				Object.defineProperty(this, '$locale', {
+					'__proto__': null,
+					'value': this.$module ? this.$module.locale : 'en'
+				});
+			}
+
 			return this._loadUtilitiesAsync(configSrvc);
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrServiceError) throw err;
 
+			const error = new TwyrServiceError(`${this.name}::load: Load Utilities Error`, err);
+			throw error;
+		})
+		.then((status) => {
+			finalStatus.push(status);
 			return this._loadServicesAsync(configSrvc);
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrServiceError) throw err;
 
-			return this._loadMiddleWaresAsync(configSrvc);
+			const error = new TwyrServiceError(`${this.name}::load: Load Services Error`, err);
+			throw error;
 		})
 		.then((status) => {
-			if(!status) throw status;
 			finalStatus.push(status);
 
 			if(callback) callback(null, this._filterStatus(finalStatus));
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.$module.name}::load error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrServiceError))
+				error = new TwyrServiceError(`${this.name}::load: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -77,22 +85,24 @@ class TwyrServiceLoader extends TwyrModuleLoader {
 		.then(() => {
 			return this._initializeServicesAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrServiceError) throw err;
 
-			return this._initializeMiddleWaresAsync();
+			const error = new TwyrServiceError(`${this.name}::initialize: Initialize Services Error`, err);
+			throw error;
 		})
 		.then((status) => {
-			if(!status) throw status;
 			finalStatus.push(status);
 
 			if(callback) callback(null, this._filterStatus(finalStatus));
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.$module.name}::initialize error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrServiceError))
+				error = new TwyrServiceError(`${this.name}::initialize: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -103,22 +113,24 @@ class TwyrServiceLoader extends TwyrModuleLoader {
 		.then(() => {
 			return this._startServicesAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrServiceError) throw err;
 
-			return this._startMiddleWaresAsync();
+			const error = new TwyrServiceError(`${this.name}::start: Start Services Error`, err);
+			throw error;
 		})
 		.then((status) => {
-			if(!status) throw status;
 			finalStatus.push(status);
 
 			if(callback) callback(null, this._filterStatus(finalStatus));
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.$module.name}::start error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrServiceError))
+				error = new TwyrServiceError(`${this.name}::start: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -127,24 +139,26 @@ class TwyrServiceLoader extends TwyrModuleLoader {
 
 		this._dummyAsync()
 		.then(() => {
-			return this._stopMiddleWaresAsync();
-		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
-
 			return this._stopServicesAsync();
 		})
+		.catch((err) => {
+			if(err instanceof TwyrServiceError) throw err;
+
+			const error = new TwyrServiceError(`${this.name}::stop: Stop Services Error`, err);
+			throw error;
+		})
 		.then((status) => {
-			if(!status) throw status;
 			finalStatus.push(status);
 
 			if(callback) callback(null, this._filterStatus(finalStatus));
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.$module.name}::stop error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrServiceError))
+				error = new TwyrServiceError(`${this.name}::stop: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -153,24 +167,26 @@ class TwyrServiceLoader extends TwyrModuleLoader {
 
 		this._dummyAsync()
 		.then(() => {
-			return this._uninitializeMiddleWaresAsync();
-		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
-
 			return this._uninitializeServicesAsync();
 		})
+		.catch((err) => {
+			if(err instanceof TwyrServiceError) throw err;
+
+			const error = new TwyrServiceError(`${this.name}::uninitialize: Uninitialize Services Error`, err);
+			throw error;
+		})
 		.then((status) => {
-			if(!status) throw status;
 			finalStatus.push(status);
 
 			if(callback) callback(null, this._filterStatus(finalStatus));
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.$module.name}::uninitialize error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrServiceError))
+				error = new TwyrServiceError(`${this.name}::uninitialize: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 
@@ -179,30 +195,36 @@ class TwyrServiceLoader extends TwyrModuleLoader {
 
 		this._dummyAsync()
 		.then(() => {
-			return this._unloadMiddleWaresAsync();
-		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
-
 			return this._unloadServicesAsync();
 		})
-		.then((status) => {
-			if(!status) throw status;
-			finalStatus.push(status);
+		.catch((err) => {
+			if(err instanceof TwyrServiceError) throw err;
 
-			return this._unloadUtilitiesAsync();
+			const error = new TwyrServiceError(`${this.name}::unload: Unload Services Error`, err);
+			throw error;
 		})
 		.then((status) => {
-			if(!status) throw status;
+			finalStatus.push(status);
+			return this._unloadUtilitiesAsync();
+		})
+		.catch((err) => {
+			if(err instanceof TwyrServiceError) throw err;
+
+			const error = new TwyrServiceError(`${this.name}::unload: Unload Utilities Error`, err);
+			throw error;
+		})
+		.then((status) => {
 			finalStatus.push(status);
 
 			if(callback) callback(null, this._filterStatus(finalStatus));
 			return null;
 		})
 		.catch((err) => {
-			if((process.env.NODE_ENV || 'development') === 'development') console.error(`${this.$module.name}::unload error: ${err.stack}`);
-			if(callback) callback(err);
+			let error = err;
+			if(!(error instanceof TwyrServiceError))
+				error = new TwyrServiceError(`${this.name}::unload: Execute Callback Error`, err);
+
+			if(callback) callback(error);
 		});
 	}
 }

@@ -26,6 +26,7 @@ const TwyrBaseError = require('./../../TwyrBaseError').TwyrBaseError,
 class ExpressService extends TwyrBaseService {
 	constructor(module) {
 		super(module);
+		this._addDependencies('AuditService', 'AuthService', 'CacheService', 'ConfigurationService', 'DatabaseService', 'LocalizationService', 'LoggerService');
 	}
 
 	start(dependencies, callback) {
@@ -446,7 +447,6 @@ class ExpressService extends TwyrBaseService {
 
 	get Interface() { return this.$express; }
 	get basePath() { return __dirname; }
-	get dependencies() { return ['AuditService', 'AuthService', 'CacheService', 'ConfigurationService', 'DatabaseService', 'LocalizationService', 'LoggerService']; }
 }
 
 exports.service = ExpressService;
