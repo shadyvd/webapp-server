@@ -236,26 +236,11 @@ exports.seed = function(knex, Promise) {
 									}
 								}),
 								knex("modules").insert({
-									'parent': configSrvcId,
-									'type': 'service',
-									'name': 'FileConfigurationService',
-									'display_name': 'File Configuration Service',
-									'description': 'The Twy\'r Basic Server Filesystem-based Configuration Service',
-									'admin_only': true,
-									'metadata': {
-										'author': 'Twy\'r',
-										'version': '1.8.3',
-										'website': 'https://twyr.github.io',
-										'demo': 'https://twyr.github.io',
-										'documentation': 'https://twyr.github.io'
-									}
-								}),
-								knex("modules").insert({
-									'parent': configSrvcId,
+									'parent': configSrvcId[0],
 									'type': 'service',
 									'name': 'DatabaseConfigurationService',
 									'display_name': 'Database Configuration Service',
-									'description': 'The Twy\'r Basic Server Database-based Configuration Service',
+									'description': 'The Twy\'r Web Application Database-based Configuration Service',
 									'admin_only': true,
 									'metadata': {
 										'author': 'Twy\'r',
@@ -266,11 +251,11 @@ exports.seed = function(knex, Promise) {
 									}
 								}),
 								knex("modules").insert({
-									'parent': configSrvcId,
+									'parent': configSrvcId[0],
 									'type': 'service',
 									'name': 'RedisConfigurationService',
 									'display_name': 'Redis Configuration Service',
-									'description': 'The Twy\'r Basic Server Redis-based Configuration Service',
+									'description': 'The Twy\'r Web Application Redis-based Configuration Service',
 									'admin_only': true,
 									'metadata': {
 										'author': 'Twy\'r',
@@ -281,11 +266,11 @@ exports.seed = function(knex, Promise) {
 									}
 								}),
 								knex("modules").insert({
-									'parent': configSrvcId,
+									'parent': configSrvcId[0],
 									'type': 'service',
 									'name': 'DotEnvConfigurationService',
 									'display_name': 'DotEnv Configuration Service',
-									'description': 'The Twy\'r Basic Server DotEnv-based Configuration Service',
+									'description': 'The Twy\'r Web Application DotEnv-based Configuration Service',
 									'admin_only': true,
 									'metadata': {
 										'author': 'Twy\'r',

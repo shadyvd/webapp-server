@@ -188,8 +188,8 @@ class Applications extends TwyrBaseComponent {
 		const rootPath = path.dirname(require.main.filename);
 		const logoFolder = path.isAbsolute(this.$config.tenantAssetsPath) ? this.$config.tenantAssetsPath : path.join(rootPath, this.$config.tenantAssetsPath);
 
-		const defaultPath = path.join(rootPath, logoFolder, 'www', 'img/logo.png'),
-			logoPath = path.join(rootPath, logoFolder, request.tenant, 'img/logo.png');
+		const defaultPath = path.join(logoFolder, 'www', 'img/logo.png'),
+			logoPath = path.join(logoFolder, request.tenant, 'img/logo.png');
 
 		this._dummyAsync()
 		.then(() => {
@@ -731,8 +731,8 @@ ${emberRouteMap}
 
 		const filesystem = promises.promisifyAll(fs);
 		const rootPath = path.dirname(require.main.filename);
-		const tenantApplicationDirname = path.isAbsolute(this.$config.tenantApplicationPath) ? this.$config.tenantApplicationPath : path.join(rootPath, this.$config.tenantApplicationPath);
-		let tenantApplicationPath = path.join(rootPath, tenantApplicationDirname, tenant, mediaType, inflection.dasherize(tenantApplication.name).toLowerCase(), 'templates');
+		let tenantApplicationDirname = path.isAbsolute(this.$config.tenantApplicationPath) ? this.$config.tenantApplicationPath : path.join(rootPath, this.$config.tenantApplicationPath);
+		let tenantApplicationPath = path.join(tenantApplicationDirname, tenant, mediaType, inflection.dasherize(tenantApplication.name).toLowerCase(), 'templates');
 
 		this._dummyAsync()
 		// Step 1: Check to ensure that the screens are present on the filesystem at the correct location
@@ -756,7 +756,8 @@ ${emberRouteMap}
 			}, []);
 		})
 		.then((results) => {
-			tenantApplicationPath = path.join(rootPath, this.$config.tenantApplicationPath, tenantApplication.tenant_folder, mediaType, inflection.dasherize(tenantApplication.name).toLowerCase(), 'templates');
+			tenantApplicationDirname = path.isAbsolute(this.$config.tenantApplicationPath) ? this.$config.tenantApplicationPath : path.join(rootPath, this.$config.tenantApplicationPath);
+			tenantApplicationPath = path.join(tenantApplicationDirname, tenantApplication.tenant_folder, mediaType, inflection.dasherize(tenantApplication.name).toLowerCase(), 'templates');
 
 			tenantApplication.screens.forEach((screen, idx) => {
 				if(results[idx]) return;
