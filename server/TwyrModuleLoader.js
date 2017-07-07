@@ -1988,7 +1988,7 @@ class TwyrModuleLoader extends EventEmitter {
 			if(typeof thisStatus.status === 'object') {
 				Object.keys(thisStatus.status).forEach((key) => {
 					if(thisStatus.status[key] instanceof Error)
-						thisStatus.status[key] = thisStatus.status[key].stack;
+						thisStatus.status[key] = thisStatus.status[key] instanceof TwyrBaseError ? thisStatus.status[key].toString() : thisStatus.status[key].stack;
 
 					if(Array.isArray(thisStatus.status[key])) {
 						thisStatus.status[key] = this._filterStatus(thisStatus.status[key]);

@@ -289,10 +289,17 @@ class TwyrWebApp extends TwyrBaseModule {
 				if(response.finished) return;
 				if(response.headersSent) next(error);
 
-				if(error instanceof TwyrJSONAPIError)
+				if(error instanceof TwyrJSONAPIError) {
 					response.status(422).json(error.toJSON());
-				else
-					response.status(400).send(error.message);
+					return;
+				}
+
+				if(error instanceof TwyrBaseError) {
+					response.status(400).send(error.toString());
+					return;
+				}
+
+				response.status(400).send(error.stack);
 			});
 
 			if(callback) callback(null, true);
