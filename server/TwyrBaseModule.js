@@ -41,8 +41,8 @@ class TwyrBaseModule extends EventEmitter {
 		if(!loader) {
 			const TwyrModuleLoader = require('./TwyrModuleLoader').TwyrModuleLoader;
 			this.$loader = promises.promisifyAll(new TwyrModuleLoader(this), {
-				'filter': function(name) {
-					return name !== '_filterStatus';
+				'filter': function(name/*, func*/) {
+					return (name !== '_filterStatus');
 				}
 			});
 		}

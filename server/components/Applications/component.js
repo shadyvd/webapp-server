@@ -731,7 +731,7 @@ ${emberRouteMap}
 
 		const filesystem = promises.promisifyAll(fs);
 		const rootPath = path.dirname(require.main.filename);
-		const tenantApplicationDirname = path.isAbsolute(this.$config.tenantApplicationPath) ? this.$config.tenantApplicationPath : path.join(rootPath, this.$config.tenantApplicationPath);
+		let tenantApplicationDirname = path.isAbsolute(this.$config.tenantApplicationPath) ? this.$config.tenantApplicationPath : path.join(rootPath, this.$config.tenantApplicationPath);
 		let tenantApplicationPath = path.join(tenantApplicationDirname, tenant, mediaType, inflection.dasherize(tenantApplication.name).toLowerCase(), 'templates');
 
 		this._dummyAsync()
@@ -756,7 +756,8 @@ ${emberRouteMap}
 			}, []);
 		})
 		.then((results) => {
-			tenantApplicationPath = path.join(rootPath, this.$config.tenantApplicationPath, tenantApplication.tenant_folder, mediaType, inflection.dasherize(tenantApplication.name).toLowerCase(), 'templates');
+			tenantApplicationDirname = path.isAbsolute(this.$config.tenantApplicationPath) ? this.$config.tenantApplicationPath : path.join(rootPath, this.$config.tenantApplicationPath);
+			tenantApplicationPath = path.join(tenantApplicationDirname, tenantApplication.tenant_folder, mediaType, inflection.dasherize(tenantApplication.name).toLowerCase(), 'templates');
 
 			tenantApplication.screens.forEach((screen, idx) => {
 				if(results[idx]) return;

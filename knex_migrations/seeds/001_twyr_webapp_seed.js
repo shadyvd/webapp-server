@@ -10,306 +10,336 @@ exports.seed = function(knex, Promise) {
 				return null;
 
 			return knex('modules').insert({
-				'name': 'TwyrWebApp',
-				'type': 'server',
-				'admin_only': true,
-				'display_name': 'Twyr Web Application',
-				'description': 'The Twy\'r Web Application Module - the "Application Class" for the Web Application',
-				'configuration': {
-					'title': 'Twy\'r Web Application'
-				},
-				'configuration_schema': {
-					'title': 'Twy\'r Web Application Schema',
-					'type': 'object',
-					'properties': {
-						'title': {
-							'type': 'string'
+					'name': 'TwyrWebApp',
+					'type': 'server',
+					'admin_only': true,
+					'display_name': 'Twyr Web Application',
+					'description': 'The Twy\'r Web Application Module - the "Application Class" for the Web Application',
+					'configuration': {
+						'title': 'Twy\'r Web Application'
+					},
+					'configuration_schema': {
+						'title': 'Twy\'r Web Application Schema',
+						'type': 'object',
+						'properties': {
+							'title': {
+								'type': 'string'
+							}
 						}
+					},
+					'metadata': {
+						'author': 'Twy\'r',
+						'version': '1.8.3',
+						'website': 'https://twyr.github.io',
+						'demo': 'https://twyr.github.io',
+						'documentation': 'https://twyr.github.io'
 					}
-				},
-				'metadata': {
-					'author': 'Twy\'r',
-					'version': '1.8.3',
-					'website': 'https://twyr.github.io',
-					'demo': 'https://twyr.github.io',
-					'documentation': 'https://twyr.github.io'
-				}
-			}).returning('id')
-			.then(function(parentId) {
-				return Promise.all([
-					parentId,
-					knex('modules').insert({
-						'parent': parentId[0],
-						'type': 'service',
-						'admin_only': true,
-						'name': 'AuditService',
-						'display_name': 'Audit Service',
-						'description': 'The Twy\'r Web Application Audit Service - waits for a request response pair, and sends it off to the audit pubsub channel',
-						'metadata': {
-							'author': 'Twy\'r',
-							'version': '1.8.3',
-							'website': 'https://twyr.github.io',
-							'demo': 'https://twyr.github.io',
-							'documentation': 'https://twyr.github.io'
-						}
-					}),
-					knex('modules').insert({
-						'parent': parentId[0],
-						'type': 'service',
-						'admin_only': true,
-						'name': 'ApiService',
-						'display_name': 'API Service',
-						'description': 'The Twy\'r Web Application API Service - allows modules to expose interfaces for use by other modules without direct references to each other',
-						'metadata': {
-							'author': 'Twy\'r',
-							'version': '1.8.3',
-							'website': 'https://twyr.github.io',
-							'demo': 'https://twyr.github.io',
-							'documentation': 'https://twyr.github.io'
-						}
-					}),
-					knex('modules').insert({
-						'parent': parentId[0],
-						'type': 'service',
-						'admin_only': true,
-						'name': 'AuthService',
-						'display_name': 'Authentication Service',
-						'description': 'The Twy\'r Web Application Authentication Service - based on Passport and its infinite strategies',
-						'metadata': {
-							'author': 'Twy\'r',
-							'version': '1.8.3',
-							'website': 'https://twyr.github.io',
-							'demo': 'https://twyr.github.io',
-							'documentation': 'https://twyr.github.io'
-						}
-					}),
-					knex('modules').insert({
-						'parent': parentId[0],
-						'type': 'service',
-						'admin_only': true,
-						'name': 'CacheService',
-						'display_name': 'Cache Service',
-						'description': 'The Twy\'r Web Application Cache Service - based on Redis',
-						'metadata': {
-							'author': 'Twy\'r',
-							'version': '1.8.3',
-							'website': 'https://twyr.github.io',
-							'demo': 'https://twyr.github.io',
-							'documentation': 'https://twyr.github.io'
-						}
-					}),
-					knex('modules').insert({
-						'parent': parentId[0],
-						'type': 'service',
-						'admin_only': true,
-						'name': 'DatabaseService',
-						'display_name': 'Database Service',
-						'description': 'The Twy\'r Web Application Database Service - built on top of Knex / Booksshelf and so supports MySQL, PostgreSQL, and a few others',
-						'metadata': {
-							'author': 'Twy\'r',
-							'version': '1.8.3',
-							'website': 'https://twyr.github.io',
-							'demo': 'https://twyr.github.io',
-							'documentation': 'https://twyr.github.io'
-						}
-					}),
-					knex('modules').insert({
-						'parent': parentId[0],
-						'type': 'service',
-						'admin_only': true,
-						'name': 'ExpressService',
-						'display_name': 'Express Service',
-						'description': 'The Twy\'r Web Application Webserver Service - based on Express and node.js HTTP/HTTPS modules',
-						'metadata': {
-							'author': 'Twy\'r',
-							'version': '1.8.3',
-							'website': 'https://twyr.github.io',
-							'demo': 'https://twyr.github.io',
-							'documentation': 'https://twyr.github.io'
-						}
-					}),
-					knex('modules').insert({
-						'parent': parentId[0],
-						'type': 'service',
-						'admin_only': true,
-						'name': 'LocalizationService',
-						'display_name': 'Localization Service',
-						'description': 'The Twy\'r Web Application Localization Service',
-						'metadata': {
-							'author': 'Twy\'r',
-							'version': '1.8.3',
-							'website': 'https://twyr.github.io',
-							'demo': 'https://twyr.github.io',
-							'documentation': 'https://twyr.github.io'
-						}
-					}),
-					knex('modules').insert({
-						'parent': parentId[0],
-						'type': 'service',
-						'admin_only': true,
-						'name': 'LoggerService',
-						'display_name': 'Logger Service',
-						'description': 'The Twy\'r Web Application Logger Service',
-						'metadata': {
-							'author': 'Twy\'r',
-							'version': '1.8.3',
-							'website': 'https://twyr.github.io',
-							'demo': 'https://twyr.github.io',
-							'documentation': 'https://twyr.github.io'
-						}
-					}),
-					knex('modules').insert({
-						'parent': parentId[0],
-						'type': 'service',
-						'admin_only': true,
-						'name': 'MailerService',
-						'display_name': 'Mailer Service',
-						'description': 'The Twy\'r Web Application Mailer Service - based on nodemailer and node-smtp-transport',
-						'metadata': {
-							'author': 'Twy\'r',
-							'version': '1.8.3',
-							'website': 'https://twyr.github.io',
-							'demo': 'https://twyr.github.io',
-							'documentation': 'https://twyr.github.io'
-						}
-					}),
-					knex('modules').insert({
-						'parent': parentId[0],
-						'type': 'service',
-						'admin_only': true,
-						'name': 'PubsubService',
-						'display_name': 'Publish/Subscribe Service',
-						'description': 'The Twy\'r Web Application Publish/Subscribe Service - based on Ascoltatori',
-						'metadata': {
-							'author': 'Twy\'r',
-							'version': '1.8.3',
-							'website': 'https://twyr.github.io',
-							'demo': 'https://twyr.github.io',
-							'documentation': 'https://twyr.github.io'
-						}
-					}),
-					knex('modules').insert({
-						'parent': parentId[0],
-						'type': 'service',
-						'admin_only': true,
-						'name': 'WebsocketService',
-						'display_name': 'Websocket Service',
-						'description': 'The Twy\'r Web Application Websocket Service - based on Primus using WS Transformer',
-						'metadata': {
-							'author': 'Twy\'r',
-							'version': '1.8.3',
-							'website': 'https://twyr.github.io',
-							'demo': 'https://twyr.github.io',
-							'documentation': 'https://twyr.github.io'
-						}
-					}),
-					knex('modules').insert({
-						'parent': parentId[0],
-						'type': 'service',
-						'admin_only': true,
-						'name': 'ConfigurationService',
-						'display_name': 'Configuration Service',
-						'description': 'The Twy\'r Web Application Configuration Service',
-						'metadata': {
-							'author': 'Twy\'r',
-							'version': '1.8.3',
-							'website': 'https://twyr.github.io',
-							'demo': 'https://twyr.github.io',
-							'documentation': 'https://twyr.github.io'
-						}
-					}).returning('id')
-					.then(function(configSrvcId) {
-						return Promise.all([
-							knex('modules').insert({
-								'parent': configSrvcId[0],
-								'type': 'service',
-								'admin_only': true,
-								'name': 'FileConfigurationService',
-								'display_name': 'File Configuration Service',
-								'description': 'The Twy\'r Web Application Filesystem-based Configuration Service',
-								'metadata': {
-									'author': 'Twy\'r',
-									'version': '1.8.3',
-									'website': 'https://twyr.github.io',
-									'demo': 'https://twyr.github.io',
-									'documentation': 'https://twyr.github.io'
-								}
-							}),
-							knex('modules').insert({
-								'parent': configSrvcId[0],
-								'type': 'service',
-								'admin_only': true,
-								'name': 'DatabaseConfigurationService',
-								'display_name': 'Database Configuration Service',
-								'description': 'The Twy\'r Web Application Database-based Configuration Service',
-								'metadata': {
-									'author': 'Twy\'r',
-									'version': '1.8.3',
-									'website': 'https://twyr.github.io',
-									'demo': 'https://twyr.github.io',
-									'documentation': 'https://twyr.github.io'
-								}
-							})
-						]);
-					}),
-					knex('modules').insert({
-						'parent': parentId[0],
-						'type': 'template',
-						'admin_only': true,
-						'name': 'BhairaviTemplate',
-						'display_name': 'Bhairavi Template',
-						'description': 'The Twy\'r Web Application Bhairavi Template',
-						'metadata': {
-							'author': 'Twy\'r',
-							'version': '1.8.3',
-							'website': 'https://twyr.github.io',
-							'demo': 'https://twyr.github.io',
-							'documentation': 'https://twyr.github.io'
-						}
-					}).returning('id')
-					.then(function(bhairaviTemplateId) {
-						return Promise.all([
-							knex('server_templates').insert({
-								'module': bhairaviTemplateId[0],
-								'media': 'desktop'
-							}),
-							knex('server_templates').insert({
-								'module': bhairaviTemplateId[0],
-								'media': 'tablet'
-							})
-						]);
-					})
-				]);
-			})
-			.then(function(parentId) {
-				return Promise.all([
-					parentId[0],
-					knex('component_permissions').insert({
-						'module': parentId[0][0],
-						'name': 'public',
-						'display_name': 'Public User Permissions',
-						'description': 'The Twy\'r Web Application Permissions for non-logged-in Users'
-					}).returning('id'),
-					knex('component_permissions').insert({
-						'module': parentId[0][0],
-						'name': 'registered',
-						'display_name': 'Registered User Permissions',
-						'description': 'The Twy\'r Web Application Permissions for logged-in Users'
-					}).returning('id'),
-					knex('component_permissions').insert({
-						'module': parentId[0][0],
-						'name': 'administrator',
-						'display_name': 'Administrator Permissions',
-						'description': 'The Twy\'r Web Application Permissions for Administrators'
-					}).returning('id'),
-					knex('component_permissions').insert({
-						'module': parentId[0][0],
-						'name': 'super-administrator',
-						'display_name': 'Super Administrator Permissions',
-						'description': 'The Twy\'r Web Application Permissions for Super Administrators'
-					}).returning('id')
-				]);
-			});
+				}).returning('id')
+				.then(function(parentId) {
+					return Promise.all([
+						parentId,
+						knex('modules').insert({
+							'parent': parentId[0],
+							'type': 'service',
+							'admin_only': true,
+							'name': 'AuditService',
+							'display_name': 'Audit Service',
+							'description': 'The Twy\'r Web Application Audit Service - waits for a request response pair, and sends it off to the audit pubsub channel',
+							'metadata': {
+								'author': 'Twy\'r',
+								'version': '1.8.3',
+								'website': 'https://twyr.github.io',
+								'demo': 'https://twyr.github.io',
+								'documentation': 'https://twyr.github.io'
+							}
+						}),
+						knex('modules').insert({
+							'parent': parentId[0],
+							'type': 'service',
+							'admin_only': true,
+							'name': 'ApiService',
+							'display_name': 'API Service',
+							'description': 'The Twy\'r Web Application API Service - allows modules to expose interfaces for use by other modules without direct references to each other',
+							'metadata': {
+								'author': 'Twy\'r',
+								'version': '1.8.3',
+								'website': 'https://twyr.github.io',
+								'demo': 'https://twyr.github.io',
+								'documentation': 'https://twyr.github.io'
+							}
+						}),
+						knex('modules').insert({
+							'parent': parentId[0],
+							'type': 'service',
+							'admin_only': true,
+							'name': 'AuthService',
+							'display_name': 'Authentication Service',
+							'description': 'The Twy\'r Web Application Authentication Service - based on Passport and its infinite strategies',
+							'metadata': {
+								'author': 'Twy\'r',
+								'version': '1.8.3',
+								'website': 'https://twyr.github.io',
+								'demo': 'https://twyr.github.io',
+								'documentation': 'https://twyr.github.io'
+							}
+						}),
+						knex('modules').insert({
+							'parent': parentId[0],
+							'type': 'service',
+							'admin_only': true,
+							'name': 'CacheService',
+							'display_name': 'Cache Service',
+							'description': 'The Twy\'r Web Application Cache Service - based on Redis',
+							'metadata': {
+								'author': 'Twy\'r',
+								'version': '1.8.3',
+								'website': 'https://twyr.github.io',
+								'demo': 'https://twyr.github.io',
+								'documentation': 'https://twyr.github.io'
+							}
+						}),
+						knex('modules').insert({
+							'parent': parentId[0],
+							'type': 'service',
+							'admin_only': true,
+							'name': 'DatabaseService',
+							'display_name': 'Database Service',
+							'description': 'The Twy\'r Web Application Database Service - built on top of Knex / Booksshelf and so supports MySQL, PostgreSQL, and a few others',
+							'metadata': {
+								'author': 'Twy\'r',
+								'version': '1.8.3',
+								'website': 'https://twyr.github.io',
+								'demo': 'https://twyr.github.io',
+								'documentation': 'https://twyr.github.io'
+							}
+						}),
+						knex('modules').insert({
+							'parent': parentId[0],
+							'type': 'service',
+							'admin_only': true,
+							'name': 'ExpressService',
+							'display_name': 'Express Service',
+							'description': 'The Twy\'r Web Application Webserver Service - based on Express and node.js HTTP/HTTPS modules',
+							'metadata': {
+								'author': 'Twy\'r',
+								'version': '1.8.3',
+								'website': 'https://twyr.github.io',
+								'demo': 'https://twyr.github.io',
+								'documentation': 'https://twyr.github.io'
+							}
+						}),
+						knex('modules').insert({
+							'parent': parentId[0],
+							'type': 'service',
+							'admin_only': true,
+							'name': 'LocalizationService',
+							'display_name': 'Localization Service',
+							'description': 'The Twy\'r Web Application Localization Service',
+							'metadata': {
+								'author': 'Twy\'r',
+								'version': '1.8.3',
+								'website': 'https://twyr.github.io',
+								'demo': 'https://twyr.github.io',
+								'documentation': 'https://twyr.github.io'
+							}
+						}),
+						knex('modules').insert({
+							'parent': parentId[0],
+							'type': 'service',
+							'admin_only': true,
+							'name': 'LoggerService',
+							'display_name': 'Logger Service',
+							'description': 'The Twy\'r Web Application Logger Service',
+							'metadata': {
+								'author': 'Twy\'r',
+								'version': '1.8.3',
+								'website': 'https://twyr.github.io',
+								'demo': 'https://twyr.github.io',
+								'documentation': 'https://twyr.github.io'
+							}
+						}),
+						knex('modules').insert({
+							'parent': parentId[0],
+							'type': 'service',
+							'admin_only': true,
+							'name': 'MailerService',
+							'display_name': 'Mailer Service',
+							'description': 'The Twy\'r Web Application Mailer Service - based on nodemailer and node-smtp-transport',
+							'metadata': {
+								'author': 'Twy\'r',
+								'version': '1.8.3',
+								'website': 'https://twyr.github.io',
+								'demo': 'https://twyr.github.io',
+								'documentation': 'https://twyr.github.io'
+							}
+						}),
+						knex('modules').insert({
+							'parent': parentId[0],
+							'type': 'service',
+							'admin_only': true,
+							'name': 'PubsubService',
+							'display_name': 'Publish/Subscribe Service',
+							'description': 'The Twy\'r Web Application Publish/Subscribe Service - based on Ascoltatori',
+							'metadata': {
+								'author': 'Twy\'r',
+								'version': '1.8.3',
+								'website': 'https://twyr.github.io',
+								'demo': 'https://twyr.github.io',
+								'documentation': 'https://twyr.github.io'
+							}
+						}),
+						knex('modules').insert({
+							'parent': parentId[0],
+							'type': 'service',
+							'admin_only': true,
+							'name': 'WebsocketService',
+							'display_name': 'Websocket Service',
+							'description': 'The Twy\'r Web Application Websocket Service - based on Primus using WS Transformer',
+							'metadata': {
+								'author': 'Twy\'r',
+								'version': '1.8.3',
+								'website': 'https://twyr.github.io',
+								'demo': 'https://twyr.github.io',
+								'documentation': 'https://twyr.github.io'
+							}
+						}),
+						knex('modules').insert({
+							'parent': parentId[0],
+							'type': 'service',
+							'admin_only': true,
+							'name': 'ConfigurationService',
+							'display_name': 'Configuration Service',
+							'description': 'The Twy\'r Web Application Configuration Service',
+							'metadata': {
+								'author': 'Twy\'r',
+								'version': '1.8.3',
+								'website': 'https://twyr.github.io',
+								'demo': 'https://twyr.github.io',
+								'documentation': 'https://twyr.github.io'
+							}
+						}).returning('id')
+						.then(function(configSrvcId) {
+							return Promise.all([
+								knex('modules').insert({
+									'parent': configSrvcId[0],
+									'type': 'service',
+									'admin_only': true,
+									'name': 'FileConfigurationService',
+									'display_name': 'File Configuration Service',
+									'description': 'The Twy\'r Web Application Filesystem-based Configuration Service',
+									'metadata': {
+										'author': 'Twy\'r',
+										'version': '1.8.3',
+										'website': 'https://twyr.github.io',
+										'demo': 'https://twyr.github.io',
+										'documentation': 'https://twyr.github.io'
+									}
+								}),
+								knex("modules").insert({
+									'parent': configSrvcId[0],
+									'type': 'service',
+									'name': 'DatabaseConfigurationService',
+									'display_name': 'Database Configuration Service',
+									'description': 'The Twy\'r Web Application Database-based Configuration Service',
+									'admin_only': true,
+									'metadata': {
+										'author': 'Twy\'r',
+										'version': '1.8.3',
+										'website': 'https://twyr.github.io',
+										'demo': 'https://twyr.github.io',
+										'documentation': 'https://twyr.github.io'
+									}
+								}),
+								knex("modules").insert({
+									'parent': configSrvcId[0],
+									'type': 'service',
+									'name': 'RedisConfigurationService',
+									'display_name': 'Redis Configuration Service',
+									'description': 'The Twy\'r Web Application Redis-based Configuration Service',
+									'admin_only': true,
+									'metadata': {
+										'author': 'Twy\'r',
+										'version': '1.8.3',
+										'website': 'https://twyr.github.io',
+										'demo': 'https://twyr.github.io',
+										'documentation': 'https://twyr.github.io'
+									}
+								}),
+								knex("modules").insert({
+									'parent': configSrvcId[0],
+									'type': 'service',
+									'name': 'DotEnvConfigurationService',
+									'display_name': 'DotEnv Configuration Service',
+									'description': 'The Twy\'r Web Application DotEnv-based Configuration Service',
+									'admin_only': true,
+									'metadata': {
+										'author': 'Twy\'r',
+										'version': '1.8.3',
+										'website': 'https://twyr.github.io',
+										'demo': 'https://twyr.github.io',
+										'documentation': 'https://twyr.github.io'
+									}
+								})
+							]);
+						}),
+						knex('modules').insert({
+							'parent': parentId[0],
+							'type': 'template',
+							'admin_only': true,
+							'name': 'BhairaviTemplate',
+							'display_name': 'Bhairavi Template',
+							'description': 'The Twy\'r Web Application Bhairavi Template',
+							'metadata': {
+								'author': 'Twy\'r',
+								'version': '1.8.3',
+								'website': 'https://twyr.github.io',
+								'demo': 'https://twyr.github.io',
+								'documentation': 'https://twyr.github.io'
+							}
+						}).returning('id')
+						.then(function(bhairaviTemplateId) {
+							return Promise.all([
+								knex('server_templates').insert({
+									'module': bhairaviTemplateId[0],
+									'media': 'desktop'
+								}),
+								knex('server_templates').insert({
+									'module': bhairaviTemplateId[0],
+									'media': 'tablet'
+								})
+							]);
+						})
+					]);
+				})
+				.then(function(parentId) {
+					return Promise.all([
+						parentId[0],
+						knex('component_permissions').insert({
+							'module': parentId[0][0],
+							'name': 'public',
+							'display_name': 'Public User Permissions',
+							'description': 'The Twy\'r Web Application Permissions for non-logged-in Users'
+						}).returning('id'),
+						knex('component_permissions').insert({
+							'module': parentId[0][0],
+							'name': 'registered',
+							'display_name': 'Registered User Permissions',
+							'description': 'The Twy\'r Web Application Permissions for logged-in Users'
+						}).returning('id'),
+						knex('component_permissions').insert({
+							'module': parentId[0][0],
+							'name': 'administrator',
+							'display_name': 'Administrator Permissions',
+							'description': 'The Twy\'r Web Application Permissions for Administrators'
+						}).returning('id'),
+						knex('component_permissions').insert({
+							'module': parentId[0][0],
+							'name': 'super-administrator',
+							'display_name': 'Super Administrator Permissions',
+							'description': 'The Twy\'r Web Application Permissions for Super Administrators'
+						}).returning('id')
+					]);
+				});
 		})
 		.then(function() {
 			return knex.raw('SELECT id FROM tenants WHERE sub_domain =\'www\'');

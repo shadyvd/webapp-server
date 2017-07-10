@@ -19,7 +19,7 @@
 	},
 	"main": "index.js",
 	"scripts": {
-		"docgen": "./node_modules/jsdoc/jsdoc.js --configure ./jsdoc.json",
+		"docs": "jsdoc --configure ./jsdoc.json",
 		"postinstall": "touch ./logs/init.log",
 		"start": "rm ./logs/*.log && node index.js | tee ./logs/console.log",
 		"test": "NODE_ENV=test mocha --recursive ./tests"
@@ -103,7 +103,6 @@
 	"devDependencies": {
 		"chai": "*",
 		"docdash": "*",
-		"jsdoc": "*",
 		"mocha": "*"
 	},
 	"maintainers": [
