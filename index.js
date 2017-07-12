@@ -4,7 +4,7 @@
  * @version   1.8.3
  * @copyright Copyright&copy; 2014 - 2017 {@link https://twyr.github.io|Twy'r Project}
  * @license   {@link https://spdx.org/licenses/MITNFA.html|MITNFA}
- * @desc      Entry point into the Twy'r Web Application Framework
+ * @summary   Entry point into the Twy'r Web Application Framework
  *
  */
 
@@ -92,7 +92,7 @@ if(cluster.isMaster) {
 		}
 	};
 
-	const sendTerminatefn = () => {
+	const terminateCluster = () => {
 		if(env === 'development' || env === 'test') console.log(`Twy'r Web Application Master: Stopping now...`);
 		config.restart = false;
 
@@ -185,7 +185,7 @@ if(cluster.isMaster) {
 
 		const replConsole = repl.start(config.repl);
 
-		replConsole.on('exit', sendTerminatefn);
+		replConsole.on('exit', terminateCluster);
 	}
 	else {
 		const telnetServer = require('net').createServer((socket) => {
@@ -197,19 +197,16 @@ if(cluster.isMaster) {
 			const replConsole = repl.start(config.repl.parameters);
 			replConsole.context.socket = socket;
 
-			replConsole.on('exit', sendTerminatefn);
+			replConsole.on('exit', terminateCluster);
 		});
 
 		telnetServer.listen(config.repl.controlPort, config.repl.controlHost);
 	}
-
-//	process.on('SIGINT', sendTerminatefn);
-//	process.on('SIGTERM', sendTerminatefn);
 }
 else {
-	const TwyrWebApp = require(config.main).TwyrWebApp;
+	const Application = require(config.main).Application;
 
-	const application = promises.promisifyAll(new TwyrWebApp(config.application, clusterId, cluster.worker.id), {
+	const application = promises.promisifyAll(new Application(config.application, clusterId, cluster.worker.id), {
 		'filter': function () {
 			return true;
 		}
@@ -278,7 +275,6 @@ else {
 		})
 		.finally(() => {
 			if(env === 'development') console.log(`\n\n${allStatuses.join('\n')}\n\n`);
-//			require('active-handles').print();
 			return null;
 		});
 	};

@@ -51,7 +51,7 @@
 		"cors": "*",
 		"csv-parse": "*",
 		"deep-equal": "*",
-		"deepmerge": "^1.4.4",
+		"deepmerge": "^1.5.0",
 		"dependency-graph": "*",
 		"dotenv": "*",
 		"ejs": "*",

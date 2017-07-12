@@ -4,7 +4,7 @@
  * @version   1.8.3
  * @copyright Copyright&copy; 2014 - 2017 {@link https://twyr.github.io|Twy'r Project}
  * @license   {@link https://spdx.org/licenses/MITNFA.html|MITNFA}
- * @desc      The Twy'r Web Application Application Component - provides functionality to render Twy'r Applications
+ * @summary   The Twy'r Web Application Application Component - provides functionality to render Twy'r Applications
  *
  */
 

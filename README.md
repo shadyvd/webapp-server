@@ -3,7 +3,7 @@ The Twy'r Web Application Server - the browser & desktop front-end for Twy'r.
 
 
 
-## Using the Twy'r Web Application Server for your pwn purposes
+## Using the Twy'r Web Application Server for your own purposes
 
 ### Development Environment Setup (Basic)
 Setting up the development environment, from scratch and with defaults, is detailed in the [Development Environment Setup](../../wiki/Development-Environment-Setup) page in the wiki.
